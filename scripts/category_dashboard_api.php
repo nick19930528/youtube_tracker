@@ -2,7 +2,8 @@
 /**
  * Dashboard 分類標籤：重新命名、拖曳排序（sort_order）
  */
-require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/bootstrap.php';
+auth_require_login();
 require_once __DIR__ . '/../controllers/CategoryController.php';
 
 header('Content-Type: application/json; charset=utf-8');
@@ -21,7 +22,8 @@ if (!is_array($input)) {
 
 $action = $input['action'] ?? '';
 $pdo = (new Database())->getConnection();
-$ctrl = new CategoryController($pdo);
+$uid = auth_user_id();
+$ctrl = new CategoryController($pdo, $uid);
 
 if ($action === 'rename') {
     $id = (int)($input['id'] ?? 0);
@@ -30,8 +32,8 @@ if ($action === 'rename') {
         echo json_encode(['ok' => false]);
         exit;
     }
-    $stmt = $pdo->prepare('SELECT sort_order FROM channel_categories WHERE id = ?');
-    $stmt->execute([$id]);
+    $stmt = $pdo->prepare('SELECT sort_order FROM channel_categories WHERE id = ? AND user_id = ?');
+    $stmt->execute([$id, $uid]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$row) {
         echo json_encode(['ok' => false]);
@@ -58,8 +60,8 @@ if ($action === 'reorder') {
     }
     $i = 1;
     foreach ($order as $id) {
-        $stmt = $pdo->prepare('UPDATE channel_categories SET sort_order = ? WHERE id = ?');
-        $stmt->execute([$i++, $id]);
+        $stmt = $pdo->prepare('UPDATE channel_categories SET sort_order = ? WHERE id = ? AND user_id = ?');
+        $stmt->execute([$i++, $id, $uid]);
     }
     echo json_encode(['ok' => true]);
     exit;

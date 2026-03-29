@@ -1,9 +1,11 @@
 <?php
-require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../config/bootstrap.php';
+auth_require_login();
 require_once __DIR__ . '/../../controllers/ChannelController.php';
 
 $pdo = (new Database())->getConnection();
-$controller = new ChannelController($pdo);
+$uid = auth_user_id();
+$controller = new ChannelController($pdo, $uid);
 
 
 // ✨ 表單送出處理（必須在任何輸出前）

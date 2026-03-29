@@ -1,7 +1,28 @@
 <?php
-require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/config/bootstrap.php';
 
 $page = $_GET['page'] ?? 'home';
+
+if ($page === 'logout') {
+    auth_logout();
+    header('Location: index.php?page=login');
+    exit;
+}
+
+if ($page === 'login') {
+    require __DIR__ . '/views/auth/login.php';
+    exit;
+}
+
+if ($page === 'register') {
+    require __DIR__ . '/views/auth/register.php';
+    exit;
+}
+
+auth_require_login();
+$pdo = (new Database())->getConnection();
+$uid = auth_user_id();
+$currentAuthUser = auth_user();
 
 /* =========================
    🔀 路由區（非首頁）
@@ -37,7 +58,6 @@ if ($page !== 'home') {
 
     exit;
 }
-$pdo = (new Database())->getConnection();
 
 $allowedQuickNotices = ['channel_ok', 'channel_err', 'video_ok', 'video_err'];
 $quickNotice = isset($_GET['notice']) && in_array($_GET['notice'], $allowedQuickNotices, true)
@@ -47,6 +67,9 @@ $quickNotice = isset($_GET['notice']) && in_array($_GET['notice'], $allowedQuick
 if ($page === 'home' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     require_once __DIR__ . '/controllers/ChannelController.php';
     require_once __DIR__ . '/controllers/VideoController.php';
+
+    $channelController = new ChannelController($pdo, $uid);
+    $videoController = new VideoController($pdo, $uid);
 
     $redirectHome = function (string $notice) {
         $q = ['notice' => $notice];
@@ -67,7 +90,7 @@ if ($page === 'home' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     };
 
     if (isset($_POST['quick_add_channel'])) {
-        $controller = new ChannelController($pdo);
+        $controller = $channelController;
         $input = trim($_POST['channel_input'] ?? '');
         $categoryId = !empty($_POST['channel_category_id']) ? (int)$_POST['channel_category_id'] : null;
 
@@ -129,7 +152,6 @@ if ($page === 'home' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (isset($_POST['quick_add_video'])) {
-        $videoController = new VideoController($pdo);
         $url = trim($_POST['video_url'] ?? '');
 
         $extractVideoId = function ($u) {
@@ -234,14 +256,22 @@ function group_videos_by_channel_for_dashboard(array $rows) {
 /* =========================
    📊 KPI
 ========================= */
-$unwatched = $pdo->query("SELECT COUNT(*) FROM videos WHERE is_watched = 0")->fetchColumn();
-$watched = $pdo->query("SELECT COUNT(*) FROM videos WHERE is_watched = 1")->fetchColumn();
-$channels = $pdo->query("SELECT COUNT(*) FROM channels")->fetchColumn();
+$st = $pdo->prepare("SELECT COUNT(*) FROM videos WHERE user_id = ? AND is_watched = 0");
+$st->execute([$uid]);
+$unwatched = $st->fetchColumn();
+$st = $pdo->prepare("SELECT COUNT(*) FROM videos WHERE user_id = ? AND is_watched = 1");
+$st->execute([$uid]);
+$watched = $st->fetchColumn();
+$st = $pdo->prepare("SELECT COUNT(*) FROM channels WHERE user_id = ?");
+$st->execute([$uid]);
+$channels = $st->fetchColumn();
 
-$todaySeconds = $pdo->query("
+$st = $pdo->prepare("
     SELECT SUM(duration) FROM videos 
-    WHERE is_watched = 1 AND DATE(watched_at) = CURDATE()
-")->fetchColumn();
+    WHERE user_id = ? AND is_watched = 1 AND DATE(watched_at) = CURDATE()
+");
+$st->execute([$uid]);
+$todaySeconds = $st->fetchColumn();
 
 $todaySeconds = (int)$todaySeconds;
 $todayTime = $todaySeconds >= 3600
@@ -254,8 +284,8 @@ $todayTime = $todaySeconds >= 3600
 $filterCategoryId = isset($_GET['category_id']) ? (int)$_GET['category_id'] : 0;
 $filterCategoryName = null;
 if ($filterCategoryId > 0) {
-    $stmt = $pdo->prepare("SELECT name FROM channel_categories WHERE id = ?");
-    $stmt->execute([$filterCategoryId]);
+    $stmt = $pdo->prepare("SELECT name FROM channel_categories WHERE id = ? AND user_id = ?");
+    $stmt->execute([$filterCategoryId, $uid]);
     $filterCategoryName = $stmt->fetchColumn();
     if ($filterCategoryName === false) {
         $filterCategoryId = 0;
@@ -270,38 +300,44 @@ if ($filterCategoryId > 0) {
     $stmt = $pdo->prepare("
         SELECT v.* FROM videos v
         INNER JOIN channels ch ON v.channel_name COLLATE utf8mb4_unicode_ci = ch.name COLLATE utf8mb4_unicode_ci
-        WHERE v.is_watched = 0 AND ch.category_id = ?
+            AND v.user_id = ch.user_id
+        WHERE v.user_id = ? AND v.is_watched = 0 AND ch.category_id = ?
         ORDER BY ch.name ASC, v.published_at DESC
         LIMIT 120
     ");
-    $stmt->execute([$filterCategoryId]);
+    $stmt->execute([$uid, $filterCategoryId]);
     $latestVideos = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $latestVideosGrouped = group_videos_by_channel_for_dashboard($latestVideos);
 
     $stmt = $pdo->prepare("
         SELECT v.* FROM videos v
         INNER JOIN channels ch ON v.channel_name COLLATE utf8mb4_unicode_ci = ch.name COLLATE utf8mb4_unicode_ci
-        WHERE v.is_watched = 1 AND ch.category_id = ?
+            AND v.user_id = ch.user_id
+        WHERE v.user_id = ? AND v.is_watched = 1 AND ch.category_id = ?
         ORDER BY ch.name ASC, COALESCE(v.watched_at, v.added_at) DESC
         LIMIT 120
     ");
-    $stmt->execute([$filterCategoryId]);
+    $stmt->execute([$uid, $filterCategoryId]);
     $latestWatchedVideos = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $latestWatchedVideosGrouped = group_videos_by_channel_for_dashboard($latestWatchedVideos);
 } else {
-    $latestVideos = $pdo->query("
+    $stmt = $pdo->prepare("
         SELECT * FROM videos 
-        WHERE is_watched = 0 
+        WHERE user_id = ? AND is_watched = 0 
         ORDER BY published_at DESC 
         LIMIT 6
-    ")->fetchAll(PDO::FETCH_ASSOC);
+    ");
+    $stmt->execute([$uid]);
+    $latestVideos = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $latestVideosGrouped = [];
-    $latestWatchedVideos = $pdo->query("
+    $stmt = $pdo->prepare("
         SELECT * FROM videos 
-        WHERE is_watched = 1 
+        WHERE user_id = ? AND is_watched = 1 
         ORDER BY COALESCE(watched_at, added_at) DESC 
         LIMIT 6
-    ")->fetchAll(PDO::FETCH_ASSOC);
+    ");
+    $stmt->execute([$uid]);
+    $latestWatchedVideos = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $latestWatchedVideosGrouped = [];
 }
 
@@ -312,19 +348,22 @@ $subscribedSql = "
     SELECT c.id, c.name, c.url, c.thumbnail_url, c.subscriber_count, c.video_count, c.published_at,
            c.is_favorite, cc.name AS category_name
     FROM channels c
-    LEFT JOIN channel_categories cc ON c.category_id = cc.id
+    LEFT JOIN channel_categories cc ON c.category_id = cc.id AND cc.user_id = c.user_id
+    WHERE c.user_id = ?
 ";
 if ($filterCategoryId > 0) {
-    $subscribedSql .= " WHERE c.category_id = ? ";
+    $subscribedSql .= " AND c.category_id = ? ";
 }
 $subscribedSql .= " ORDER BY c.name ASC";
 
 if ($filterCategoryId > 0) {
     $stmt = $pdo->prepare($subscribedSql);
-    $stmt->execute([$filterCategoryId]);
+    $stmt->execute([$uid, $filterCategoryId]);
     $subscribedChannels = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } else {
-    $subscribedChannels = $pdo->query($subscribedSql)->fetchAll(PDO::FETCH_ASSOC);
+    $stmt = $pdo->prepare($subscribedSql);
+    $stmt->execute([$uid]);
+    $subscribedChannels = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
 $dashTabKey = isset($_GET['dash_tab']) ? (string)$_GET['dash_tab'] : 'unwatched';
@@ -335,33 +374,40 @@ if (!in_array($dashTabKey, ['unwatched', 'watched', 'subscribed'], true)) {
 /* =========================
    ⭐ 我的最愛頻道（channels.is_favorite = 1）
 ========================= */
-$favoriteChannels = $pdo->query("
+$stmt = $pdo->prepare("
     SELECT c.name, c.url, cc.name AS category_name,
            (SELECT COUNT(*) FROM videos v
-            WHERE v.channel_name COLLATE utf8mb4_unicode_ci = c.name COLLATE utf8mb4_unicode_ci
+            WHERE v.user_id = c.user_id
+              AND v.channel_name COLLATE utf8mb4_unicode_ci = c.name COLLATE utf8mb4_unicode_ci
               AND v.is_watched = 0
            ) AS unwatched_count,
            (SELECT COUNT(*) FROM videos v
-            WHERE v.channel_name COLLATE utf8mb4_unicode_ci = c.name COLLATE utf8mb4_unicode_ci
+            WHERE v.user_id = c.user_id
+              AND v.channel_name COLLATE utf8mb4_unicode_ci = c.name COLLATE utf8mb4_unicode_ci
               AND v.is_watched = 1
            ) AS watched_count
     FROM channels c
-    LEFT JOIN channel_categories cc ON c.category_id = cc.id
-    WHERE c.is_favorite = 1
+    LEFT JOIN channel_categories cc ON c.category_id = cc.id AND cc.user_id = c.user_id
+    WHERE c.user_id = ? AND c.is_favorite = 1
     ORDER BY c.name ASC
     LIMIT 20
-")->fetchAll(PDO::FETCH_ASSOC);
+");
+$stmt->execute([$uid]);
+$favoriteChannels = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 /* =========================
    📂 分類
 ========================= */
-$categories = $pdo->query("
+$stmt = $pdo->prepare("
     SELECT cc.*, COUNT(c.id) as total
     FROM channel_categories cc
-    LEFT JOIN channels c ON cc.id = c.category_id
+    LEFT JOIN channels c ON cc.id = c.category_id AND c.user_id = cc.user_id
+    WHERE cc.user_id = ?
     GROUP BY cc.id
     ORDER BY cc.sort_order ASC
-")->fetchAll(PDO::FETCH_ASSOC);
+");
+$stmt->execute([$uid]);
+$categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -806,12 +852,30 @@ body {
     color: #666;
     margin-left: 4px;
 }
+.site-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+.site-header h1 { margin: 0; font-size: 1.5rem; }
+.site-user { font-size: 14px; color: #555; }
+.site-user a { color: #0077cc; margin-left: 12px; }
 </style>
 
 </head>
 <body>
 
-<h1>🎬 YouTube Dashboard</h1>
+<header class="site-header">
+    <h1>🎬 YouTube Dashboard</h1>
+    <div class="site-user">
+        <?= htmlspecialchars($currentAuthUser['name'] !== '' ? $currentAuthUser['name'] : $currentAuthUser['email']) ?>
+        <span style="color:#999;">(<?= htmlspecialchars($currentAuthUser['email']) ?>)</span>
+        <a href="index.php?page=logout">登出</a>
+    </div>
+</header>
 
 <!-- KPI -->
 <div class="cards">

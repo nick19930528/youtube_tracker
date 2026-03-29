@@ -2,7 +2,8 @@
 /**
  * Dashboard 頻道卡片：切換最愛、刪除頻道
  */
-require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/bootstrap.php';
+auth_require_login();
 require_once __DIR__ . '/../controllers/ChannelController.php';
 
 header('Content-Type: application/json; charset=utf-8');
@@ -27,15 +28,16 @@ if ($id < 1) {
 }
 
 $pdo = (new Database())->getConnection();
-$controller = new ChannelController($pdo);
+$uid = auth_user_id();
+$controller = new ChannelController($pdo, $uid);
 
 if ($action === 'toggle_favorite') {
     if (!$controller->toggleFavorite($id)) {
         echo json_encode(['ok' => false]);
         exit;
     }
-    $stmt = $pdo->prepare('SELECT is_favorite FROM channels WHERE id = ?');
-    $stmt->execute([$id]);
+    $stmt = $pdo->prepare('SELECT is_favorite FROM channels WHERE id = ? AND user_id = ?');
+    $stmt->execute([$id, $uid]);
     $isFav = (int)$stmt->fetchColumn();
     echo json_encode(['ok' => true, 'is_favorite' => $isFav]);
     exit;

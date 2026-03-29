@@ -1,19 +1,21 @@
 <?php
 class Channel {
     private $pdo;
+    private $userId;
 
-    public function __construct($pdo) {
+    public function __construct($pdo, int $userId) {
         $this->pdo = $pdo;
+        $this->userId = $userId;
     }
 
     public function getAll($categoryId = null, $keyword = null) {
         $sql = "
             SELECT c.*, cat.name AS category_name
             FROM channels c
-            LEFT JOIN channel_categories cat ON c.category_id = cat.id
-            WHERE 1
+            LEFT JOIN channel_categories cat ON c.category_id = cat.id AND cat.user_id = c.user_id
+            WHERE c.user_id = ?
         ";
-        $params = [];
+        $params = [$this->userId];
 
         if ($categoryId) {
             $sql .= " AND c.category_id = ?";
@@ -33,21 +35,17 @@ class Channel {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-
-
     public function add($name, $channelId, $url, $categoryId = null) {
         if ($this->exists($channelId)) {
             return false;
         }
 
-        // 初始化欄位
         $subscriberCount = 0;
         $videoCount = 0;
         $description = null;
         $publishedAt = null;
         $thumbnail = null;
 
-        // 取得額外資料
         $apiUrl = "https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id={$channelId}&key=" . YOUTUBE_API_KEY;
         $json = file_get_contents($apiUrl);
         $data = json_decode($json, true);
@@ -60,7 +58,6 @@ class Channel {
             $description = $item['snippet']['description'] ?? null;
             $thumbnail = $item['snippet']['thumbnails']['default']['url'] ?? null;
 
-            // 轉換 publishedAt 格式
             if (!empty($item['snippet']['publishedAt'])) {
                 $timestamp = strtotime($item['snippet']['publishedAt']);
                 if ($timestamp !== false) {
@@ -69,15 +66,15 @@ class Channel {
             }
         }
 
-        // 寫入資料
         $stmt = $this->pdo->prepare("
             INSERT INTO channels (
-                name, channel_id, url, subscribed_at, category_id,
+                user_id, name, channel_id, url, subscribed_at, category_id,
                 subscriber_count, video_count, description, published_at, thumbnail_url
             )
-            VALUES (?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?)
         ");
         return $stmt->execute([
+            $this->userId,
             $name,
             $channelId,
             $url,
@@ -89,27 +86,27 @@ class Channel {
             $thumbnail
         ]);
     }
+
     public function delete($id) {
-        $stmt = $this->pdo->prepare("DELETE FROM channels WHERE id = ?");
-        return $stmt->execute([$id]);
+        $stmt = $this->pdo->prepare("DELETE FROM channels WHERE id = ? AND user_id = ?");
+        return $stmt->execute([$id, $this->userId]);
     }
 
-
-
     public function getCategories() {
-        $stmt = $this->pdo->query("SELECT * FROM channel_categories ORDER BY name");
+        $stmt = $this->pdo->prepare("SELECT * FROM channel_categories WHERE user_id = ? ORDER BY name");
+        $stmt->execute([$this->userId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-
     public function exists($channelId) {
-        $stmt = $this->pdo->prepare("SELECT 1 FROM channels WHERE channel_id = ?");
-        $stmt->execute([$channelId]);
+        $stmt = $this->pdo->prepare("SELECT 1 FROM channels WHERE channel_id = ? AND user_id = ?");
+        $stmt->execute([$channelId, $this->userId]);
         return $stmt->fetchColumn() !== false;
     }
+
     public function updateCategory($channelId, $categoryId) {
-        $stmt = $this->pdo->prepare("UPDATE channels SET category_id = ? WHERE id = ?");
-        return $stmt->execute([$categoryId, $channelId]);
+        $stmt = $this->pdo->prepare("UPDATE channels SET category_id = ? WHERE id = ? AND user_id = ?");
+        return $stmt->execute([$categoryId, $channelId, $this->userId]);
     }
 
     public function toggleFavorite($id) {
@@ -117,8 +114,7 @@ class Channel {
         if ($id < 1) {
             return false;
         }
-        $stmt = $this->pdo->prepare("UPDATE channels SET is_favorite = IF(is_favorite = 1, 0, 1) WHERE id = ?");
-        return $stmt->execute([$id]);
+        $stmt = $this->pdo->prepare("UPDATE channels SET is_favorite = IF(is_favorite = 1, 0, 1) WHERE id = ? AND user_id = ?");
+        return $stmt->execute([$id, $this->userId]);
     }
-
 }

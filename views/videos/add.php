@@ -1,9 +1,11 @@
 <?php
-require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../config/bootstrap.php';
+auth_require_login();
 require_once __DIR__ . '/../../controllers/VideoController.php';
 
 $pdo = (new Database())->getConnection();
-$controller = new VideoController($pdo);
+$uid = auth_user_id();
+$controller = new VideoController($pdo, $uid);
 
 $message = "";
 

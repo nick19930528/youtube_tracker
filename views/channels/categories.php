@@ -1,9 +1,11 @@
 <?php
-require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../config/bootstrap.php';
+auth_require_login();
 require_once __DIR__ . '/../../controllers/CategoryController.php';
 
 $pdo = (new Database())->getConnection();
-$controller = new CategoryController($pdo);
+$uid = auth_user_id();
+$controller = new CategoryController($pdo, $uid);
 
 // 表單處理
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
