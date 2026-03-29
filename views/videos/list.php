@@ -155,18 +155,32 @@ uasort($groupedVideos, function ($a, $b) {
 
                             <td>
                                 <?php if (!empty($video['thumbnail_url'])): ?>
-                                    <img src="<?= htmlspecialchars($video['thumbnail_url']) ?>" alt="縮圖">
+                                    <?php if (!$video['is_watched']): ?>
+                                        <a href="index.php?page=open_video&amp;id=<?= (int)$video['id'] ?>" target="_blank" rel="noopener noreferrer">
+                                            <img src="<?= htmlspecialchars($video['thumbnail_url']) ?>" alt="縮圖">
+                                        </a>
+                                    <?php else: ?>
+                                        <img src="<?= htmlspecialchars($video['thumbnail_url']) ?>" alt="縮圖">
+                                    <?php endif; ?>
                                 <?php else: ?> -
                                 <?php endif; ?>
                             </td>
-                            <td><?= htmlspecialchars($video['title']) ?></td>
+                            <td><?php if (!$video['is_watched']): ?>
+                                    <a href="index.php?page=open_video&amp;id=<?= (int)$video['id'] ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars($video['title']) ?></a>
+                                <?php else: ?>
+                                    <?= htmlspecialchars($video['title']) ?>
+                                <?php endif; ?></td>
                             <td><?= htmlspecialchars($video['channel_name'] ?? '-') ?></td>
                             <td><?= $video['published_at'] ? date('Y-m-d', strtotime($video['published_at'])) : '-' ?></td>
                             <td><?= number_format($video['view_count'] ?? 0) ?></td>
                             <td><?= number_format($video['like_count'] ?? 0) ?></td>
                             <td><?= number_format($video['comment_count'] ?? 0) ?></td>
                             <td><?= isset($video['duration']) ? formatDuration($video['duration']) : '-' ?></td>
-                            <td><a href="<?= htmlspecialchars($video['youtube_url']) ?>" target="_blank">▶️ 前往</a></td>
+                            <td><?php if (!$video['is_watched']): ?>
+                                    <a href="index.php?page=open_video&amp;id=<?= (int)$video['id'] ?>" target="_blank" rel="noopener noreferrer">▶️ 前往</a>
+                                <?php else: ?>
+                                    <a href="<?= htmlspecialchars($video['youtube_url']) ?>" target="_blank" rel="noopener noreferrer">▶️ 前往</a>
+                                <?php endif; ?></td>
                             <td><?= $video['summary'] ? nl2br(htmlspecialchars($video['summary'])) : '-' ?></td>
                             <td>
                                 <form method="post" style="display:inline;">

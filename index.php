@@ -40,6 +40,27 @@ if ($page !== 'home') {
             require __DIR__ . '/views/videos/list.php';
             break;
 
+        case 'open_video':
+            require_once __DIR__ . '/controllers/VideoController.php';
+            $openVideoId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+            if ($openVideoId <= 0) {
+                header('Location: index.php');
+                exit;
+            }
+            $stmt = $pdo->prepare('SELECT id, youtube_url, is_watched FROM videos WHERE id = ? AND user_id = ?');
+            $stmt->execute([$openVideoId, $uid]);
+            $openRow = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$openRow || empty($openRow['youtube_url'])) {
+                header('Location: index.php');
+                exit;
+            }
+            if ((int)$openRow['is_watched'] === 0) {
+                $videoController = new VideoController($pdo, $uid);
+                $videoController->markWatched($openVideoId);
+            }
+            header('Location: ' . $openRow['youtube_url']);
+            exit;
+
         case 'videos_by_category':
             require __DIR__ . '/views/videos/by_category.php';
             break;
@@ -1021,10 +1042,12 @@ body {
                         <?php foreach ($vidList as $v): ?>
                             <div class="video">
                                 <?php if ($v['thumbnail_url']): ?>
-                                    <img src="<?= htmlspecialchars($v['thumbnail_url']) ?>" alt="">
+                                    <a href="index.php?page=open_video&amp;id=<?= (int)$v['id'] ?>" target="_blank" rel="noopener noreferrer">
+                                        <img src="<?= htmlspecialchars($v['thumbnail_url']) ?>" alt="">
+                                    </a>
                                 <?php endif; ?>
                                 <div>
-                                    <a href="<?= htmlspecialchars($v['youtube_url']) ?>" target="_blank" rel="noopener noreferrer">
+                                    <a href="index.php?page=open_video&amp;id=<?= (int)$v['id'] ?>" target="_blank" rel="noopener noreferrer">
                                         <?= htmlspecialchars($v['title']) ?>
                                     </a>
                                 </div>
@@ -1039,11 +1062,13 @@ body {
             <?php foreach ($latestVideos as $v): ?>
                 <div class="video">
                     <?php if ($v['thumbnail_url']): ?>
-                        <img src="<?= htmlspecialchars($v['thumbnail_url']) ?>" alt="">
+                        <a href="index.php?page=open_video&amp;id=<?= (int)$v['id'] ?>" target="_blank" rel="noopener noreferrer">
+                            <img src="<?= htmlspecialchars($v['thumbnail_url']) ?>" alt="">
+                        </a>
                     <?php endif; ?>
 
                     <div>
-                        <a href="<?= htmlspecialchars($v['youtube_url']) ?>" target="_blank" rel="noopener noreferrer">
+                        <a href="index.php?page=open_video&amp;id=<?= (int)$v['id'] ?>" target="_blank" rel="noopener noreferrer">
                             <?= htmlspecialchars($v['title']) ?>
                         </a>
                         <br>

@@ -2,9 +2,9 @@
 /**
  * 各方案額度：依 subscription_plans.slug 對應（free、go …）
  */
-define('PLAN_FREE_MAX_CHANNELS', 10);
+define('PLAN_FREE_MAX_CHANNELS', 200);
 define('PLAN_FREE_MAX_CATEGORIES', 10);
-define('PLAN_FREE_MAX_VIDEOS_PER_LIST', 100);
+define('PLAN_FREE_MAX_VIDEOS_PER_LIST', 10000);
 
 define('PLAN_GO_MAX_CHANNELS', 50);
 define('PLAN_GO_MAX_CATEGORIES', 50);
