@@ -9,6 +9,7 @@ $controller = new VideoController($pdo, $uid);
 
 require_once __DIR__ . '/../../config/plan_limits.php';
 $videoCap = plan_limits_max_videos_per_list($pdo, $uid);
+$_tier = plan_limits_get_tier_limits(plan_limits_get_active_slug($pdo, $uid));
 
 $isWatched = isset($_GET['watched']) ? (int)$_GET['watched'] : 0;
 $keyword = trim($_GET['keyword'] ?? '');
@@ -89,8 +90,8 @@ uasort($groupedVideos, function ($a, $b) {
         </form>
 
         <p>目前顯示 <?= count($videos) ?> 部影片<?php
-        if ($videoCap !== null) {
-            echo '（免費版此清單最多 ' . (int)PLAN_FREE_MAX_VIDEOS_PER_LIST . ' 筆）';
+        if ($videoCap !== null && $_tier !== null) {
+            echo '（' . htmlspecialchars($_tier['name']) . ' 方案此清單最多 ' . (int)$_tier['videos'] . ' 筆）';
         }
         ?></p>
 

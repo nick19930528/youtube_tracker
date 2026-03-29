@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['add'])) {
         require_once __DIR__ . '/../../config/plan_limits.php';
         if (!plan_limits_can_add_category($pdo, $uid)) {
-            $categoryAddError = '免費版最多 ' . PLAN_FREE_MAX_CATEGORIES . ' 個分類。';
+            $categoryAddError = '您目前方案最多 ' . (int)plan_limits_max_categories($pdo, $uid) . ' 個分類。';
         } elseif (!$controller->add(trim($_POST['new_name']))) {
             $categoryAddError = '新增失敗（可能與現有分類名稱衝突）。';
         }

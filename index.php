@@ -292,7 +292,7 @@ $todayTime = $todaySeconds >= 3600
 require_once __DIR__ . '/config/plan_limits.php';
 $_maxVideosList = plan_limits_max_videos_per_list($pdo, $uid);
 $videoListSqlLimit = ($_maxVideosList === null) ? 999999 : (int)$_maxVideosList;
-$isFreePlan = plan_limits_is_free($pdo, $uid);
+$quotaBannerText = plan_limits_quota_banner_text($pdo, $uid);
 
 $filterCategoryId = isset($_GET['category_id']) ? (int)$_GET['category_id'] : 0;
 $filterCategoryName = null;
@@ -891,8 +891,8 @@ body {
     </div>
 </header>
 
-<?php if (!empty($isFreePlan)): ?>
-<p style="font-size:13px;color:#64748b;margin:0 0 16px;">免費版：待看／已看列表各最多顯示 <?= (int)PLAN_FREE_MAX_VIDEOS_PER_LIST ?> 筆；頻道與分類各最多 <?= (int)PLAN_FREE_MAX_CHANNELS ?> 個。</p>
+<?php if ($quotaBannerText !== ''): ?>
+<p style="font-size:13px;color:#64748b;margin:0 0 16px;"><?= htmlspecialchars($quotaBannerText) ?></p>
 <?php endif; ?>
 
 <!-- KPI -->
@@ -912,10 +912,14 @@ body {
         $noticeTexts = [
             'channel_ok' => '✅ 頻道已成功新增。',
             'channel_err' => '⚠️ 無法新增頻道（頻道已存在、網址格式錯誤或無法從 YouTube 取得資料）。',
-            'channel_limit' => '⚠️ 免費版最多 ' . PLAN_FREE_MAX_CHANNELS . ' 個頻道，請刪除部分頻道或升級方案。',
+            'channel_limit' => '',
             'video_ok' => '✅ 影片已加入已看清單。',
             'video_err' => '⚠️ 無法新增影片（連結無效、影片已存在或無法取得影片資訊）。',
         ];
+        if ($quickNotice === 'channel_limit') {
+            $mc = plan_limits_max_channels($pdo, $uid);
+            $noticeTexts['channel_limit'] = '⚠️ 您目前方案最多 ' . (int)$mc . ' 個頻道，請刪除部分頻道或升級方案。';
+        }
         $noticeOk = in_array($quickNotice, ['channel_ok', 'video_ok'], true);
         ?>
         <p class="quick-notice <?= $noticeOk ? 'quick-notice--ok' : 'quick-notice--err' ?>">

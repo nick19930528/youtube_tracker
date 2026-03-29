@@ -103,7 +103,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             require_once __DIR__ . '/../../config/plan_limits.php';
             if (!plan_limits_can_add_channel($pdo, $uid)) {
-                echo '<p>⚠️ 免費版最多 ' . (int)PLAN_FREE_MAX_CHANNELS . ' 個頻道。</p>';
+                $mc = plan_limits_max_channels($pdo, $uid);
+                echo '<p>⚠️ 您目前方案最多 ' . (int)$mc . ' 個頻道。</p>';
             } else {
                 echo "<p>⚠️ 頻道已存在或新增失敗。</p>";
             }
