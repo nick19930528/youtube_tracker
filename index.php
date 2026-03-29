@@ -56,6 +56,12 @@ if ($page === 'home' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $q['category_id'] = $cid;
             }
         }
+        if (!empty($_POST['home_dash_tab'])) {
+            $dt = (string)$_POST['home_dash_tab'];
+            if (in_array($dt, ['unwatched', 'watched', 'subscribed'], true)) {
+                $q['dash_tab'] = $dt;
+            }
+        }
         header('Location: index.php?' . http_build_query($q));
         exit;
     };
@@ -211,6 +217,20 @@ if ($page === 'home' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+/** 依頻道名稱分組（分類篩選時左欄顯示） */
+function group_videos_by_channel_for_dashboard(array $rows) {
+    $groups = [];
+    foreach ($rows as $v) {
+        $k = (string)($v['channel_name'] ?? '');
+        if (!isset($groups[$k])) {
+            $groups[$k] = [];
+        }
+        $groups[$k][] = $v;
+    }
+    ksort($groups, SORT_NATURAL);
+    return $groups;
+}
+
 /* =========================
    📊 KPI
 ========================= */
@@ -229,24 +249,7 @@ $todayTime = $todaySeconds >= 3600
     : gmdate("i:s", $todaySeconds);
 
 /* =========================
-   🎬 最新未看影片
-========================= */
-$latestVideos = $pdo->query("
-    SELECT * FROM videos 
-    WHERE is_watched = 0 
-    ORDER BY published_at DESC 
-    LIMIT 6
-")->fetchAll(PDO::FETCH_ASSOC);
-
-$latestWatchedVideos = $pdo->query("
-    SELECT * FROM videos 
-    WHERE is_watched = 1 
-    ORDER BY COALESCE(watched_at, added_at) DESC 
-    LIMIT 6
-")->fetchAll(PDO::FETCH_ASSOC);
-
-/* =========================
-   📺 已訂閱頻道（Dashboard 區塊）
+   📂 分類篩選（須先於待看／已看／已訂閱查詢）
 ========================= */
 $filterCategoryId = isset($_GET['category_id']) ? (int)$_GET['category_id'] : 0;
 $filterCategoryName = null;
@@ -260,6 +263,51 @@ if ($filterCategoryId > 0) {
     }
 }
 
+/* =========================
+   🎬 待看 / 已看（依分類時只顯示該分類內頻道，並依頻道分組）
+========================= */
+if ($filterCategoryId > 0) {
+    $stmt = $pdo->prepare("
+        SELECT v.* FROM videos v
+        INNER JOIN channels ch ON v.channel_name COLLATE utf8mb4_unicode_ci = ch.name COLLATE utf8mb4_unicode_ci
+        WHERE v.is_watched = 0 AND ch.category_id = ?
+        ORDER BY ch.name ASC, v.published_at DESC
+        LIMIT 120
+    ");
+    $stmt->execute([$filterCategoryId]);
+    $latestVideos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $latestVideosGrouped = group_videos_by_channel_for_dashboard($latestVideos);
+
+    $stmt = $pdo->prepare("
+        SELECT v.* FROM videos v
+        INNER JOIN channels ch ON v.channel_name COLLATE utf8mb4_unicode_ci = ch.name COLLATE utf8mb4_unicode_ci
+        WHERE v.is_watched = 1 AND ch.category_id = ?
+        ORDER BY ch.name ASC, COALESCE(v.watched_at, v.added_at) DESC
+        LIMIT 120
+    ");
+    $stmt->execute([$filterCategoryId]);
+    $latestWatchedVideos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $latestWatchedVideosGrouped = group_videos_by_channel_for_dashboard($latestWatchedVideos);
+} else {
+    $latestVideos = $pdo->query("
+        SELECT * FROM videos 
+        WHERE is_watched = 0 
+        ORDER BY published_at DESC 
+        LIMIT 6
+    ")->fetchAll(PDO::FETCH_ASSOC);
+    $latestVideosGrouped = [];
+    $latestWatchedVideos = $pdo->query("
+        SELECT * FROM videos 
+        WHERE is_watched = 1 
+        ORDER BY COALESCE(watched_at, added_at) DESC 
+        LIMIT 6
+    ")->fetchAll(PDO::FETCH_ASSOC);
+    $latestWatchedVideosGrouped = [];
+}
+
+/* =========================
+   📺 已訂閱頻道（Dashboard 區塊）
+========================= */
 $subscribedSql = "
     SELECT c.id, c.name, c.url, c.thumbnail_url, c.subscriber_count, c.video_count, c.published_at,
            c.is_favorite, cc.name AS category_name
@@ -279,7 +327,10 @@ if ($filterCategoryId > 0) {
     $subscribedChannels = $pdo->query($subscribedSql)->fetchAll(PDO::FETCH_ASSOC);
 }
 
-$dashTabSubscribed = ($filterCategoryId > 0);
+$dashTabKey = isset($_GET['dash_tab']) ? (string)$_GET['dash_tab'] : 'unwatched';
+if (!in_array($dashTabKey, ['unwatched', 'watched', 'subscribed'], true)) {
+    $dashTabKey = 'unwatched';
+}
 
 /* =========================
    ⭐ 我的最愛頻道（channels.is_favorite = 1）
@@ -363,6 +414,24 @@ body {
     text-decoration: none;
     color: #333;
     font-weight: bold;
+}
+
+.video-channel-group {
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #e8ecf0;
+}
+.video-channel-group:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+.video-channel-title {
+    margin: 0 0 8px;
+    font-size: 14px;
+    color: #0077cc;
+    font-weight: bold;
+    line-height: 1.3;
 }
 
 .section-head {
@@ -776,6 +845,7 @@ body {
             <h4>➕ 新增頻道</h4>
             <form method="post" action="index.php">
                 <input type="hidden" name="home_category_id" value="<?= $filterCategoryId > 0 ? (int)$filterCategoryId : '' ?>">
+                <input type="hidden" name="home_dash_tab" value="<?= htmlspecialchars($dashTabKey) ?>">
                 <div class="form-row">
                     <label for="channel_input">頻道網址 / @handle / Channel ID</label>
                     <input type="text" name="channel_input" id="channel_input" placeholder="例如：https://www.youtube.com/@handle 或 @handle" required autocomplete="off">
@@ -800,6 +870,7 @@ body {
             <h4>➕ 新增影片</h4>
             <form method="post" action="index.php">
                 <input type="hidden" name="home_category_id" value="<?= $filterCategoryId > 0 ? (int)$filterCategoryId : '' ?>">
+                <input type="hidden" name="home_dash_tab" value="<?= htmlspecialchars($dashTabKey) ?>">
                 <div class="form-row">
                     <label for="video_url">YouTube 影片網址</label>
                     <input type="text" name="video_url" id="video_url" placeholder="https://www.youtube.com/watch?v=…" required autocomplete="off">
@@ -818,14 +889,44 @@ body {
     <div class="section-head">
         <h3>🎬 最新影片</h3>
         <div class="video-tab-toggle" role="tablist" aria-label="待看、已看與已訂閱頻道">
-            <button type="button" class="video-tab<?= !$dashTabSubscribed ? ' active' : '' ?>" role="tab" aria-selected="<?= $dashTabSubscribed ? 'false' : 'true' ?>" data-panel="unwatched" id="tab-unwatched">📋 待看</button>
-            <button type="button" class="video-tab" role="tab" aria-selected="false" data-panel="watched" id="tab-watched">✅ 已看</button>
-            <button type="button" class="video-tab<?= $dashTabSubscribed ? ' active' : '' ?>" role="tab" aria-selected="<?= $dashTabSubscribed ? 'true' : 'false' ?>" data-panel="subscribed" id="tab-subscribed">📺 已訂閱</button>
+            <button type="button" class="video-tab<?= $dashTabKey === 'unwatched' ? ' active' : '' ?>" role="tab" aria-selected="<?= $dashTabKey === 'unwatched' ? 'true' : 'false' ?>" data-panel="unwatched" id="tab-unwatched">📋 待看</button>
+            <button type="button" class="video-tab<?= $dashTabKey === 'watched' ? ' active' : '' ?>" role="tab" aria-selected="<?= $dashTabKey === 'watched' ? 'true' : 'false' ?>" data-panel="watched" id="tab-watched">✅ 已看</button>
+            <button type="button" class="video-tab<?= $dashTabKey === 'subscribed' ? ' active' : '' ?>" role="tab" aria-selected="<?= $dashTabKey === 'subscribed' ? 'true' : 'false' ?>" data-panel="subscribed" id="tab-subscribed">📺 已訂閱</button>
         </div>
     </div>
 
-    <div id="panel-unwatched" class="video-panel" role="tabpanel" aria-labelledby="tab-unwatched"<?= $dashTabSubscribed ? ' hidden' : '' ?>>
-        <?php if (empty($latestVideos)): ?>
+    <?php if ($filterCategoryId > 0 && $filterCategoryName): ?>
+        <p class="category-filter-banner" style="margin-bottom:14px;">
+            目前分類：<strong><?= htmlspecialchars($filterCategoryName) ?></strong>
+            （待看／已看／已訂閱皆套用此分類）
+            <a class="category-filter-clear" href="index.php?<?= http_build_query(['dash_tab' => $dashTabKey]) ?>">顯示全部</a>
+        </p>
+    <?php endif; ?>
+
+    <div id="panel-unwatched" class="video-panel" role="tabpanel" aria-labelledby="tab-unwatched"<?= $dashTabKey !== 'unwatched' ? ' hidden' : '' ?>>
+        <?php if ($filterCategoryId > 0): ?>
+            <?php if (empty($latestVideosGrouped)): ?>
+                <p class="video-empty">此分類下尚無待看影片。</p>
+            <?php else: ?>
+                <?php foreach ($latestVideosGrouped as $chName => $vidList): ?>
+                    <div class="video-channel-group">
+                        <h4 class="video-channel-title">📺 <?= htmlspecialchars($chName !== '' ? $chName : '（未知頻道）') ?></h4>
+                        <?php foreach ($vidList as $v): ?>
+                            <div class="video">
+                                <?php if ($v['thumbnail_url']): ?>
+                                    <img src="<?= htmlspecialchars($v['thumbnail_url']) ?>" alt="">
+                                <?php endif; ?>
+                                <div>
+                                    <a href="<?= htmlspecialchars($v['youtube_url']) ?>" target="_blank" rel="noopener noreferrer">
+                                        <?= htmlspecialchars($v['title']) ?>
+                                    </a>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        <?php elseif (empty($latestVideos)): ?>
             <p class="video-empty">目前沒有待看影片。</p>
         <?php else: ?>
             <?php foreach ($latestVideos as $v): ?>
@@ -846,8 +947,30 @@ body {
         <?php endif; ?>
     </div>
 
-    <div id="panel-watched" class="video-panel" role="tabpanel" aria-labelledby="tab-watched" hidden>
-        <?php if (empty($latestWatchedVideos)): ?>
+    <div id="panel-watched" class="video-panel" role="tabpanel" aria-labelledby="tab-watched"<?= $dashTabKey !== 'watched' ? ' hidden' : '' ?>>
+        <?php if ($filterCategoryId > 0): ?>
+            <?php if (empty($latestWatchedVideosGrouped)): ?>
+                <p class="video-empty">此分類下尚無已看影片。</p>
+            <?php else: ?>
+                <?php foreach ($latestWatchedVideosGrouped as $chName => $vidList): ?>
+                    <div class="video-channel-group">
+                        <h4 class="video-channel-title">📺 <?= htmlspecialchars($chName !== '' ? $chName : '（未知頻道）') ?></h4>
+                        <?php foreach ($vidList as $v): ?>
+                            <div class="video">
+                                <?php if ($v['thumbnail_url']): ?>
+                                    <img src="<?= htmlspecialchars($v['thumbnail_url']) ?>" alt="">
+                                <?php endif; ?>
+                                <div>
+                                    <a href="<?= htmlspecialchars($v['youtube_url']) ?>" target="_blank" rel="noopener noreferrer">
+                                        <?= htmlspecialchars($v['title']) ?>
+                                    </a>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        <?php elseif (empty($latestWatchedVideos)): ?>
             <p class="video-empty">目前沒有已看影片。</p>
         <?php else: ?>
             <?php foreach ($latestWatchedVideos as $v): ?>
@@ -868,16 +991,10 @@ body {
         <?php endif; ?>
     </div>
 
-    <div id="panel-subscribed" class="video-panel" role="tabpanel" aria-labelledby="tab-subscribed"<?= $dashTabSubscribed ? '' : ' hidden' ?>>
-        <?php if ($filterCategoryId > 0 && $filterCategoryName): ?>
-            <p class="category-filter-banner">
-                目前分類：<strong><?= htmlspecialchars($filterCategoryName) ?></strong>
-                <a class="category-filter-clear" href="index.php">顯示全部頻道</a>
-            </p>
-        <?php endif; ?>
+    <div id="panel-subscribed" class="video-panel" role="tabpanel" aria-labelledby="tab-subscribed"<?= $dashTabKey !== 'subscribed' ? ' hidden' : '' ?>>
         <?php if (empty($subscribedChannels)): ?>
             <?php if ($filterCategoryId > 0): ?>
-                <p class="video-empty">此分類尚無已訂閱頻道。<a href="index.php">顯示全部</a> 或 <a href="index.php?page=channels">頻道管理</a></p>
+                <p class="video-empty">此分類尚無已訂閱頻道。<a href="index.php?<?= http_build_query(['dash_tab' => $dashTabKey]) ?>">顯示全部</a> 或 <a href="index.php?page=channels">頻道管理</a></p>
             <?php else: ?>
                 <p class="video-empty">尚未加入任何頻道。<a href="index.php?page=channels">前往頻道管理</a></p>
             <?php endif; ?>
@@ -961,6 +1078,16 @@ body {
     var panels = document.querySelectorAll('.video-panel');
     if (!tabs.length || !panels.length) return;
 
+    function syncCategoryLinksDashTab(key) {
+        document.querySelectorAll('a.category--nav[href*="category_id="]').forEach(function (a) {
+            try {
+                var u = new URL(a.href, window.location.origin);
+                u.searchParams.set('dash_tab', key);
+                a.href = u.pathname + '?' + u.searchParams.toString();
+            } catch (e) {}
+        });
+    }
+
     function switchPanel(key) {
         tabs.forEach(function (b) {
             var on = b.getAttribute('data-panel') === key;
@@ -970,6 +1097,13 @@ body {
         panels.forEach(function (p) {
             p.hidden = p.id !== 'panel-' + key;
         });
+        var params = new URLSearchParams(window.location.search);
+        params.set('dash_tab', key);
+        var qs = params.toString();
+        if (qs) {
+            history.replaceState(null, '', window.location.pathname + '?' + qs);
+        }
+        syncCategoryLinksDashTab(key);
     }
 
     tabs.forEach(function (btn) {
@@ -978,8 +1112,9 @@ body {
         });
     });
 
-    if (new URLSearchParams(window.location.search).get('category_id')) {
-        switchPanel('subscribed');
+    var active = document.querySelector('.video-tab.active');
+    if (active) {
+        syncCategoryLinksDashTab(active.getAttribute('data-panel'));
     }
 })();
 </script>
@@ -1067,7 +1202,7 @@ body {
                 $isActive = ($filterCategoryId > 0 && $cid === $filterCategoryId);
                 ?>
                 <div class="category-item" data-id="<?= $cid ?>" data-name="<?= htmlspecialchars($c['name'], ENT_QUOTES, 'UTF-8') ?>" data-total="<?= $ctotal ?>" draggable="false">
-                    <a class="category category--nav<?= $isActive ? ' category--active' : '' ?>" href="index.php?category_id=<?= $cid ?>">
+                    <a class="category category--nav<?= $isActive ? ' category--active' : '' ?>" href="index.php?<?= http_build_query(['category_id' => $cid, 'dash_tab' => $dashTabKey]) ?>">
                         <?= htmlspecialchars($c['name']) ?> (<?= $ctotal ?>)
                     </a>
                     <div class="category category--editor">
