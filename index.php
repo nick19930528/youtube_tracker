@@ -262,7 +262,7 @@ if ($filterCategoryId > 0) {
 
 $subscribedSql = "
     SELECT c.id, c.name, c.url, c.thumbnail_url, c.subscriber_count, c.video_count, c.published_at,
-           cc.name AS category_name
+           c.is_favorite, cc.name AS category_name
     FROM channels c
     LEFT JOIN channel_categories cc ON c.category_id = cc.id
 ";
@@ -466,7 +466,7 @@ body {
     padding: 10px 8px;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 6px;
     text-align: left;
     opacity: 0;
@@ -475,6 +475,43 @@ body {
 }
 .channel-card-media:hover .channel-card-overlay {
     opacity: 1;
+}
+.channel-card-overlay-main {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    justify-content: center;
+    min-height: 0;
+}
+.channel-card-overlay-actions {
+    align-self: flex-end;
+    margin-top: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+    pointer-events: auto;
+}
+.channel-card-btn {
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-family: inherit;
+    background: rgba(255, 255, 255, 0.15);
+    color: #f8fafc;
+}
+.channel-card-btn:hover {
+    background: rgba(255, 255, 255, 0.28);
+}
+.channel-card-btn--fav.channel-card-btn--on {
+    background: rgba(234, 179, 8, 0.35);
+}
+.channel-card-btn--del:hover {
+    background: rgba(239, 68, 68, 0.45);
 }
 .channel-card-stat {
     display: flex;
@@ -869,7 +906,8 @@ body {
                         }
                     }
                     ?>
-                    <article class="channel-card">
+                    <?php $isFav = !empty($ch['is_favorite']); ?>
+                    <article class="channel-card" data-channel-id="<?= (int)$ch['id'] ?>">
                         <div class="channel-card-media">
                             <?php if (!empty($ch['thumbnail_url'])): ?>
                                 <img class="channel-card-thumb" src="<?= htmlspecialchars($ch['thumbnail_url']) ?>" alt="">
@@ -877,17 +915,28 @@ body {
                                 <span class="channel-card-thumb channel-card-thumb--empty" role="img" aria-label="無頻道圖片"></span>
                             <?php endif; ?>
                             <div class="channel-card-overlay">
-                                <div class="channel-card-stat">
-                                    <span class="channel-card-stat-label">訂閱</span>
-                                    <span class="channel-card-stat-value"><?= htmlspecialchars($subStr) ?></span>
+                                <div class="channel-card-overlay-main">
+                                    <div class="channel-card-stat">
+                                        <span class="channel-card-stat-label">訂閱</span>
+                                        <span class="channel-card-stat-value"><?= htmlspecialchars($subStr) ?></span>
+                                    </div>
+                                    <div class="channel-card-stat">
+                                        <span class="channel-card-stat-label">影片</span>
+                                        <span class="channel-card-stat-value"><?= htmlspecialchars($vidStr) ?></span>
+                                    </div>
+                                    <div class="channel-card-stat">
+                                        <span class="channel-card-stat-label">成立</span>
+                                        <span class="channel-card-stat-value"><?= htmlspecialchars($yearsStr) ?></span>
+                                    </div>
                                 </div>
-                                <div class="channel-card-stat">
-                                    <span class="channel-card-stat-label">影片</span>
-                                    <span class="channel-card-stat-value"><?= htmlspecialchars($vidStr) ?></span>
-                                </div>
-                                <div class="channel-card-stat">
-                                    <span class="channel-card-stat-label">成立</span>
-                                    <span class="channel-card-stat-value"><?= htmlspecialchars($yearsStr) ?></span>
+                                <div class="channel-card-overlay-actions">
+                                    <button type="button" class="channel-card-btn channel-card-btn--fav<?= $isFav ? ' channel-card-btn--on' : '' ?>"
+                                            data-channel-id="<?= (int)$ch['id'] ?>"
+                                            data-is-favorite="<?= $isFav ? '1' : '0' ?>"
+                                            title="我的最愛"><?= $isFav ? '⭐ 最愛' : '☆ 最愛' ?></button>
+                                    <button type="button" class="channel-card-btn channel-card-btn--del"
+                                            data-channel-id="<?= (int)$ch['id'] ?>"
+                                            title="從訂閱清單刪除">🗑 刪除</button>
                                 </div>
                             </div>
                         </div>
@@ -935,6 +984,59 @@ body {
 })();
 </script>
 
+<script>
+(function () {
+    var api = 'scripts/channel_card_api.php';
+    var grid = document.querySelector('#panel-subscribed .subscribed-grid');
+    if (!grid) return;
+
+    function postJson(body) {
+        return fetch(api, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        }).then(function (r) { return r.json(); });
+    }
+
+    grid.addEventListener('click', function (e) {
+        var fav = e.target.closest('.channel-card-btn--fav');
+        var del = e.target.closest('.channel-card-btn--del');
+        if (fav) {
+            e.preventDefault();
+            e.stopPropagation();
+            var id = parseInt(fav.getAttribute('data-channel-id'), 10);
+            postJson({ action: 'toggle_favorite', channel_id: id }).then(function (res) {
+                if (!res || !res.ok) return;
+                var on = res.is_favorite === 1;
+                fav.setAttribute('data-is-favorite', on ? '1' : '0');
+                fav.textContent = on ? '⭐ 最愛' : '☆ 最愛';
+                fav.classList.toggle('channel-card-btn--on', on);
+            });
+            return;
+        }
+        if (del) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!confirm('確定要從訂閱清單刪除此頻道？（不會影響 YouTube 上的頻道）')) return;
+            var cid = parseInt(del.getAttribute('data-channel-id'), 10);
+            postJson({ action: 'delete_channel', channel_id: cid }).then(function (res) {
+                if (!res || !res.ok) {
+                    alert('刪除失敗');
+                    return;
+                }
+                var card = del.closest('.channel-card');
+                if (card) card.remove();
+                if (!grid.querySelector('.channel-card')) {
+                    window.location.reload();
+                }
+            }).catch(function () {
+                alert('刪除失敗');
+            });
+        }
+    });
+})();
+</script>
+
 <!-- 右邊 -->
 <div>
 
@@ -942,7 +1044,7 @@ body {
     <div class="section">
         <h3>⭐ 我的最愛頻道</h3>
         <?php if (empty($favoriteChannels)): ?>
-            <p class="video-empty">尚無最愛頻道。請至 <a href="index.php?page=channels">頻道管理</a> 點 ☆ / ⭐ 加入。</p>
+            <p class="video-empty">尚無最愛頻道。請在「📺 已訂閱」頻道卡游標移到圖片上，於右下角按「☆ 最愛」；亦可至 <a href="index.php?page=channels">頻道管理</a> 操作。</p>
         <?php else: ?>
             <?php foreach ($favoriteChannels as $c): ?>
                 <div class="channel">
