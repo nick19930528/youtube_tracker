@@ -603,6 +603,85 @@ body {
 }
 .category-filter-clear:hover { text-decoration: underline; }
 
+/* 右側分類標籤（可編輯／拖曳） */
+.category-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: flex-start;
+}
+.category-item {
+    display: inline-block;
+    vertical-align: top;
+}
+.category-tags--edit .category-item {
+    cursor: grab;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+    border-radius: 8px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.category-tags--edit .category-item:active {
+    cursor: grabbing;
+}
+.category-item.dragging {
+    opacity: 0.55;
+    transform: scale(0.98);
+}
+.category--editor {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    background: #eef6fc;
+    border: 1px dashed #0077cc;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 14px;
+}
+.category-tags--edit .category--nav {
+    display: none !important;
+}
+.category-tags--edit .category--editor {
+    display: inline-flex !important;
+}
+.category-editor-grip {
+    color: #64748b;
+    font-size: 12px;
+    user-select: none;
+    line-height: 1;
+}
+.category-editor-input {
+    width: 6.5em;
+    min-width: 4em;
+    max-width: 12em;
+    padding: 4px 6px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: inherit;
+}
+.category-editor-meta {
+    color: #64748b;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.btn-outline {
+    background: #fff;
+    color: #0077cc;
+    border: 1px solid #0077cc;
+}
+.btn-outline:hover {
+    background: #f0f7fc;
+}
+.btn-outline.is-active {
+    background: #0077cc;
+    color: #fff;
+}
+.btn-outline.is-active:hover {
+    background: #0066b3;
+}
+
 /* 頻道 */
 .channel {
     margin-bottom: 8px;
@@ -645,7 +724,11 @@ body {
         <a class="btn" href="index.php?page=videos&watched=0">📋 待看清單</a>
         <a class="btn" href="index.php?page=videos&watched=1">✅ 已看清單</a>
         <a class="btn" href="index.php?page=channels">📺 頻道管理</a>
+        <a class="btn" href="index.php?page=channel_categories">📂 分類管理</a>
         <a class="btn" href="scripts/fetch_new_videos.php" target="_blank" rel="noopener noreferrer">📡 抓新影片</a>
+        <button type="button" class="btn btn-outline" id="btnCategoryTagEdit" aria-pressed="false" title="切換後可拖曳排序、點名稱修改">
+            ✏️ 編輯分類標籤
+        </button>
     </div>
 
     <div class="quick-forms">
@@ -864,19 +947,153 @@ body {
 
     <!-- 分類 -->
     <div class="section">
-
-        <a class="btn" href="index.php?page=channel_categories">📂 分類管理</a>
-        
-        <?php foreach ($categories as $c): ?>
-            <a class="category<?= ($filterCategoryId > 0 && (int)$c['id'] === $filterCategoryId) ? ' category--active' : '' ?>" href="index.php?category_id=<?= (int)$c['id'] ?>">
-                <?= htmlspecialchars($c['name']) ?> (<?= (int)$c['total'] ?>)
-            </a>
-        <?php endforeach; ?>
+        <h3 style="margin-top:0;">📂 分類</h3>
+        <p class="video-empty" style="margin:0 0 10px;font-size:13px;">在「快速操作」可開啟 <strong>編輯分類標籤</strong>，標籤會浮起並可拖曳排序、直接改名。</p>
+        <div class="category-tags" id="categoryTags">
+            <?php foreach ($categories as $c): ?>
+                <?php
+                $cid = (int)$c['id'];
+                $ctotal = (int)$c['total'];
+                $isActive = ($filterCategoryId > 0 && $cid === $filterCategoryId);
+                ?>
+                <div class="category-item" data-id="<?= $cid ?>" data-name="<?= htmlspecialchars($c['name'], ENT_QUOTES, 'UTF-8') ?>" data-total="<?= $ctotal ?>" draggable="false">
+                    <a class="category category--nav<?= $isActive ? ' category--active' : '' ?>" href="index.php?category_id=<?= $cid ?>">
+                        <?= htmlspecialchars($c['name']) ?> (<?= $ctotal ?>)
+                    </a>
+                    <div class="category category--editor">
+                        <span class="category-editor-grip" title="拖曳排序">⠿</span>
+                        <input type="text" class="category-editor-input" value="<?= htmlspecialchars($c['name']) ?>" maxlength="100" aria-label="分類名稱">
+                        <span class="category-editor-meta">(<?= $ctotal ?>)</span>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
     </div>
 
 </div>
 
 </div>
+
+<script>
+(function () {
+    var wrap = document.getElementById('categoryTags');
+    var btn = document.getElementById('btnCategoryTagEdit');
+    var api = 'scripts/category_dashboard_api.php';
+    if (!wrap || !btn) return;
+
+    var editMode = false;
+
+    function setNavLabel(item, name, total) {
+        var a = item.querySelector('.category--nav');
+        if (a) a.textContent = name + ' (' + total + ')';
+    }
+
+    function postJson(body) {
+        return fetch(api, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        }).then(function (r) { return r.json(); });
+    }
+
+    function saveOrder() {
+        var order = [];
+        wrap.querySelectorAll('.category-item').forEach(function (el) {
+            order.push(parseInt(el.getAttribute('data-id'), 10));
+        });
+        return postJson({ action: 'reorder', order: order });
+    }
+
+    btn.addEventListener('click', function () {
+        editMode = !editMode;
+        wrap.classList.toggle('category-tags--edit', editMode);
+        btn.classList.toggle('is-active', editMode);
+        btn.setAttribute('aria-pressed', editMode ? 'true' : 'false');
+
+        wrap.querySelectorAll('.category-item').forEach(function (el) {
+            el.setAttribute('draggable', editMode ? 'true' : 'false');
+        });
+
+        if (!editMode) {
+            saveOrder().then(function (res) {
+                if (res && res.ok) {
+                    window.location.reload();
+                }
+            }).catch(function () {
+                window.location.reload();
+            });
+        }
+    });
+
+    var dragEl = null;
+    wrap.addEventListener('dragstart', function (e) {
+        if (!editMode) return;
+        var row = e.target.closest('.category-item');
+        if (!row || !wrap.contains(row)) return;
+        dragEl = row;
+        row.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', String(row.getAttribute('data-id')));
+    });
+
+    wrap.addEventListener('dragend', function (e) {
+        var row = e.target.closest('.category-item');
+        if (row) row.classList.remove('dragging');
+        dragEl = null;
+    });
+
+    wrap.addEventListener('dragover', function (e) {
+        if (!editMode || !dragEl) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        var row = e.target.closest('.category-item');
+        if (!row || row === dragEl || !wrap.contains(row)) return;
+        var rect = row.getBoundingClientRect();
+        var mid = rect.top + rect.height / 2;
+        if (e.clientY < mid) {
+            wrap.insertBefore(dragEl, row);
+        } else {
+            wrap.insertBefore(dragEl, row.nextSibling);
+        }
+    });
+
+    wrap.addEventListener('drop', function (e) {
+        e.preventDefault();
+    });
+
+    wrap.querySelectorAll('.category-editor-input').forEach(function (input) {
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                input.blur();
+            }
+        });
+        input.addEventListener('blur', function () {
+            if (!editMode) return;
+            var item = input.closest('.category-item');
+            if (!item) return;
+            var id = parseInt(item.getAttribute('data-id'), 10);
+            var total = parseInt(item.getAttribute('data-total'), 10) || 0;
+            var prev = item.getAttribute('data-name') || '';
+            var name = input.value.trim();
+            if (name === '' || name === prev) {
+                input.value = prev;
+                return;
+            }
+            postJson({ action: 'rename', id: id, name: name }).then(function (res) {
+                if (res && res.ok) {
+                    item.setAttribute('data-name', name);
+                    setNavLabel(item, name, total);
+                } else {
+                    input.value = prev;
+                }
+            }).catch(function () {
+                input.value = prev;
+            });
+        });
+    });
+})();
+</script>
 
 </body>
 </html>
