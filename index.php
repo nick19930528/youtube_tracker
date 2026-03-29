@@ -19,6 +19,11 @@ if ($page === 'register') {
     exit;
 }
 
+if ($page === 'pay_return') {
+    require __DIR__ . '/views/payment/return_mpg.php';
+    exit;
+}
+
 auth_require_login();
 $pdo = (new Database())->getConnection();
 $uid = auth_user_id();
@@ -53,6 +58,10 @@ if ($page !== 'home') {
 
         case 'account':
             require __DIR__ . '/views/account/center.php';
+            break;
+
+        case 'pay':
+            require __DIR__ . '/views/payment/checkout_mpg.php';
             break;
 
         default:

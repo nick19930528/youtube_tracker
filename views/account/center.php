@@ -226,7 +226,19 @@ $selGender = array_key_exists('gender', $profile) && $profile['gender'] !== null
         <?php else: ?>
             <p class="muted">尚無訂閱紀錄。若您應享有方案，請聯絡管理員。</p>
         <?php endif; ?>
-        <p class="hint" style="margin-top: 16px; margin-bottom: 0;">升級或變更付費方案功能將於後續版本開放。</p>
+        <?php
+        require_once __DIR__ . '/../../config/payment_minimal.php';
+        $slugNow = $sub ? (string)$sub['slug'] : 'free';
+        $canMpg = payment_minimal_is_configured();
+        ?>
+        <?php if ($slugNow === 'free' && $canMpg): ?>
+            <p style="margin-top: 16px; margin-bottom: 0;">
+                <a href="index.php?page=pay" style="display:inline-block;padding:10px 16px;background:#0369a1;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;">升級 Go（MPG 一次付清 · 最小單元）</a>
+            </p>
+            <p class="hint" style="margin-top: 10px; margin-bottom: 0;">使用藍新 MPG 幕前一次付清；請先執行資料庫 migration <code>006_payment_orders_minimal.sql</code> 並設定 <code>MPG_*</code> 金鑰。</p>
+        <?php elseif ($slugNow === 'free'): ?>
+            <p class="hint" style="margin-top: 16px; margin-bottom: 0;">付費升級請在 <code>config/payment_minimal.php</code> 或環境變數設定商店代號與 Hash Key／IV。</p>
+        <?php endif; ?>
     </div>
 </div>
 </body>
