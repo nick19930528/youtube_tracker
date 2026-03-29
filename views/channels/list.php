@@ -16,6 +16,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
 
+    // 切換最愛
+    if (isset($_POST['toggle_favorite_id'])) {
+        $controller->toggleFavorite((int)$_POST['toggle_favorite_id']);
+        $redirect = "index.php?page=channels";
+        if (isset($_GET['category_id'])) {
+            $redirect .= "&category_id=" . urlencode($_GET['category_id']);
+        }
+        if (!empty($_GET['keyword'])) {
+            $redirect .= "&keyword=" . urlencode($_GET['keyword']);
+        }
+        header("Location: $redirect");
+        exit;
+    }
+
     // 分類變更
     if (isset($_POST['channel_id'], $_POST['new_category_id'])) {
         $controller->updateCategory($_POST['channel_id'], $_POST['new_category_id'] ?: null);
@@ -165,6 +179,7 @@ $categories = $controller->getCategoriesWithCount();
             <th>創立時間</th>
             <th>頻道 ID</th>
             <th>訂閱時間</th>
+            <th>最愛</th>
             <th>操作</th> <!-- 將「分類（可變更）」改為「操作」 -->
         </tr>
     </thead>
@@ -196,6 +211,12 @@ $categories = $controller->getCategoriesWithCount();
             <td><?= $channel['published_at'] ? date('Y-m-d', strtotime($channel['published_at'])) : '-' ?></td>
             <td><?= htmlspecialchars($channel['channel_id']) ?></td>
             <td><?= date('Y-m-d', strtotime($channel['subscribed_at'])) ?></td>
+            <td>
+                <form method="post" style="margin:0;">
+                    <input type="hidden" name="toggle_favorite_id" value="<?= (int)$channel['id'] ?>">
+                    <button type="submit" title="切換我的最愛"><?= !empty($channel['is_favorite']) ? '⭐' : '☆' ?></button>
+                </form>
+            </td>
             <td>
                 <!-- 將分類與刪除按鈕整合在一起 -->
                 <form method="post" style="margin:0; display: inline-block;">

@@ -282,14 +282,17 @@ if ($filterCategoryId > 0) {
 $dashTabSubscribed = ($filterCategoryId > 0);
 
 /* =========================
-   📺 熱門頻道（影片最多）
+   ⭐ 我的最愛頻道（channels.is_favorite = 1）
 ========================= */
-$topChannels = $pdo->query("
-    SELECT channel_name, COUNT(*) as total
-    FROM videos
-    GROUP BY channel_name
-    ORDER BY total DESC
-    LIMIT 5
+$favoriteChannels = $pdo->query("
+    SELECT c.name, c.url,
+           (SELECT COUNT(*) FROM videos v
+            WHERE v.channel_name COLLATE utf8mb4_unicode_ci = c.name COLLATE utf8mb4_unicode_ci
+           ) AS video_total
+    FROM channels c
+    WHERE c.is_favorite = 1
+    ORDER BY c.name ASC
+    LIMIT 20
 ")->fetchAll(PDO::FETCH_ASSOC);
 
 /* =========================
@@ -935,14 +938,19 @@ body {
 <!-- 右邊 -->
 <div>
 
-    <!-- 熱門頻道 -->
+    <!-- 我的最愛頻道 -->
     <div class="section">
-        <h3>🔥 常看頻道</h3>
-        <?php foreach ($topChannels as $c): ?>
-            <div class="channel">
-                <?= htmlspecialchars($c['channel_name']) ?>（<?= $c['total'] ?>）
-            </div>
-        <?php endforeach; ?>
+        <h3>⭐ 我的最愛頻道</h3>
+        <?php if (empty($favoriteChannels)): ?>
+            <p class="video-empty">尚無最愛頻道。請至 <a href="index.php?page=channels">頻道管理</a> 點 ☆ / ⭐ 加入。</p>
+        <?php else: ?>
+            <?php foreach ($favoriteChannels as $c): ?>
+                <div class="channel">
+                    <a href="<?= htmlspecialchars($c['url']) ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars($c['name']) ?></a>
+                    （<?= (int)$c['video_total'] ?>）
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
     </div>
 
     <!-- 分類 -->

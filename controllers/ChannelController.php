@@ -43,6 +43,9 @@ class ChannelController {
         return $this->channel->updateCategory($channelId, $categoryId);
     }
 
-    
+    public function toggleFavorite($id) {
+        return $this->channel->toggleFavorite($id);
+    }
+
 }
 

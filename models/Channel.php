@@ -112,5 +112,13 @@ class Channel {
         return $stmt->execute([$categoryId, $channelId]);
     }
 
-    
+    public function toggleFavorite($id) {
+        $id = (int)$id;
+        if ($id < 1) {
+            return false;
+        }
+        $stmt = $this->pdo->prepare("UPDATE channels SET is_favorite = IF(is_favorite = 1, 0, 1) WHERE id = ?");
+        return $stmt->execute([$id]);
+    }
+
 }
