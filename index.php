@@ -336,11 +336,17 @@ if (!in_array($dashTabKey, ['unwatched', 'watched', 'subscribed'], true)) {
    ⭐ 我的最愛頻道（channels.is_favorite = 1）
 ========================= */
 $favoriteChannels = $pdo->query("
-    SELECT c.name, c.url,
+    SELECT c.name, c.url, cc.name AS category_name,
            (SELECT COUNT(*) FROM videos v
             WHERE v.channel_name COLLATE utf8mb4_unicode_ci = c.name COLLATE utf8mb4_unicode_ci
-           ) AS video_total
+              AND v.is_watched = 0
+           ) AS unwatched_count,
+           (SELECT COUNT(*) FROM videos v
+            WHERE v.channel_name COLLATE utf8mb4_unicode_ci = c.name COLLATE utf8mb4_unicode_ci
+              AND v.is_watched = 1
+           ) AS watched_count
     FROM channels c
+    LEFT JOIN channel_categories cc ON c.category_id = cc.id
     WHERE c.is_favorite = 1
     ORDER BY c.name ASC
     LIMIT 20
@@ -795,6 +801,11 @@ body {
 .channel {
     margin-bottom: 8px;
 }
+.fav-channel-row .fav-channel-meta {
+    font-size: 12px;
+    color: #666;
+    margin-left: 4px;
+}
 </style>
 
 </head>
@@ -1182,9 +1193,16 @@ body {
             <p class="video-empty">尚無最愛頻道。請在「📺 已訂閱」頻道卡游標移到圖片上，於右下角按「☆ 最愛」；亦可至 <a href="index.php?page=channels">頻道管理</a> 操作。</p>
         <?php else: ?>
             <?php foreach ($favoriteChannels as $c): ?>
-                <div class="channel">
+                <?php
+                $favUw = (int)($c['unwatched_count'] ?? 0);
+                $favWd = (int)($c['watched_count'] ?? 0);
+                $favCat = isset($c['category_name']) && $c['category_name'] !== '' ? $c['category_name'] : '未分類';
+                ?>
+                <div class="channel fav-channel-row">
                     <a href="<?= htmlspecialchars($c['url']) ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars($c['name']) ?></a>
-                    （<?= (int)$c['video_total'] ?>）
+                    <span class="fav-channel-meta">
+                        （待看 <?= $favUw ?> / 已看 <?= $favWd ?> / <?= htmlspecialchars($favCat) ?>）
+                    </span>
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
