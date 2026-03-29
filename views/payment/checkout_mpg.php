@@ -45,9 +45,6 @@ if (!payment_minimal_is_configured()) {
                     if (mb_strlen($itemDesc, 'UTF-8') > 50) {
                         $itemDesc = mb_substr($itemDesc, 0, 50, 'UTF-8');
                     }
-                    // 藍新 MPG：須明確啟用信用卡（CREDIT=1）。未帶時行為依商店後台／預設可能只出現部分付款方式。
-                    // 「分期」是否出現：主要由藍新商店後台「信用卡—分期」與收單合約決定；程式未送 InstFlag＝不指定分期期數（一次付清為主）。
-                    // 若畫面仍只有分期，請至藍新後台檢查是否僅啟用分期或未啟用一次付清。
                     $params = array(
                         'MerchantID' => MPG_MERCHANT_ID,
                         'RespondType' => 'JSON',
@@ -60,7 +57,6 @@ if (!payment_minimal_is_configured()) {
                         'NotifyURL' => payment_minimal_notify_url(),
                         'Email' => trim($user['email']),
                         'LoginType' => 0,
-                        'CREDIT' => 1,
                     );
                     $tradeInfo = PaymentMinimal::encryptTradeInfo($params);
                     if ($tradeInfo === false) {
