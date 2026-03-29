@@ -1201,7 +1201,7 @@ body {
                 <div class="channel fav-channel-row">
                     <a href="<?= htmlspecialchars($c['url']) ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars($c['name']) ?></a>
                     <span class="fav-channel-meta">
-                        （待看 <?= $favUw ?> / 已看 <?= $favWd ?> / <?= htmlspecialchars($favCat) ?>）
+                        （ <?= $favUw ?> /  <?= $favWd ?> / <?= htmlspecialchars($favCat) ?>）
                     </span>
                 </div>
             <?php endforeach; ?>
