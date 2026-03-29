@@ -101,7 +101,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header("Location: index.php?page=channels"); // ← 不帶 category_id
                 exit;
             }
-            else {
+            require_once __DIR__ . '/../../config/plan_limits.php';
+            if (!plan_limits_can_add_channel($pdo, $uid)) {
+                echo '<p>⚠️ 免費版最多 ' . (int)PLAN_FREE_MAX_CHANNELS . ' 個頻道。</p>';
+            } else {
                 echo "<p>⚠️ 頻道已存在或新增失敗。</p>";
             }
         }

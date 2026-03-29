@@ -7,10 +7,17 @@ $pdo = (new Database())->getConnection();
 $uid = auth_user_id();
 $controller = new CategoryController($pdo, $uid);
 
+$categoryAddError = '';
+
 // 表單處理
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['add'])) {
-        $controller->add(trim($_POST['new_name']));
+        require_once __DIR__ . '/../../config/plan_limits.php';
+        if (!plan_limits_can_add_category($pdo, $uid)) {
+            $categoryAddError = '免費版最多 ' . PLAN_FREE_MAX_CATEGORIES . ' 個分類。';
+        } elseif (!$controller->add(trim($_POST['new_name']))) {
+            $categoryAddError = '新增失敗（可能與現有分類名稱衝突）。';
+        }
     } elseif (isset($_POST['update'])) {
         $controller->update($_POST['id'], trim($_POST['name']), (int)$_POST['sort_order']);
     } elseif (isset($_POST['delete'])) {
@@ -25,6 +32,9 @@ $categories = $controller->getAll();
 ?>
 
 <h2>📂 頻道分類管理</h2>
+<?php if ($categoryAddError !== ''): ?>
+    <p style="color:#b91c1c;"><?= htmlspecialchars($categoryAddError) ?></p>
+<?php endif; ?>
 <form method="get" action="index.php" style="margin: 10px 0;">
     <input type="hidden" name="page" value="channels">
     <button type="submit">🔙 返回頻道清單</button>

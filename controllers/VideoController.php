@@ -45,20 +45,27 @@ class VideoController {
         return false;
     }
 
-    public function list($isWatched = 0, $orderBy = 'added_at', $orderDir = 'desc') {
+    public function list($isWatched = 0, $orderBy = 'added_at', $orderDir = 'desc', $limit = null) {
         $orderBy = in_array($orderBy, ['added_at', 'published_at']) ? $orderBy : 'added_at';
         $orderDir = ($orderDir === 'asc') ? 'asc' : 'desc';
 
-        $stmt = $this->pdo->prepare("SELECT * FROM videos WHERE user_id = ? AND is_watched = ? ORDER BY {$orderBy} {$orderDir}");
+        $sql = "SELECT * FROM videos WHERE user_id = ? AND is_watched = ? ORDER BY {$orderBy} {$orderDir}";
+        if ($limit !== null && (int)$limit > 0) {
+            $sql .= ' LIMIT ' . (int)$limit;
+        }
+        $stmt = $this->pdo->prepare($sql);
         $stmt->execute([$this->userId, $isWatched]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function search($isWatched = 0, $keyword = '') {
+    public function search($isWatched = 0, $keyword = '', $limit = null) {
         $sql = "SELECT * FROM videos
                 WHERE user_id = :uid AND is_watched = :watched
                   AND (title LIKE :kw OR summary LIKE :kw OR channel_name LIKE :kw)
                 ORDER BY published_at DESC";
+        if ($limit !== null && (int)$limit > 0) {
+            $sql .= ' LIMIT ' . (int)$limit;
+        }
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->bindValue(':uid', $this->userId, PDO::PARAM_INT);

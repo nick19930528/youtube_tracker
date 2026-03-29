@@ -51,6 +51,10 @@ if ($page !== 'home') {
             require __DIR__ . '/views/channels/categories.php';
             break;
 
+        case 'account':
+            require __DIR__ . '/views/account/center.php';
+            break;
+
         default:
             echo "❌ 頁面不存在";
             break;
@@ -59,7 +63,7 @@ if ($page !== 'home') {
     exit;
 }
 
-$allowedQuickNotices = ['channel_ok', 'channel_err', 'video_ok', 'video_err'];
+$allowedQuickNotices = ['channel_ok', 'channel_err', 'channel_limit', 'video_ok', 'video_err'];
 $quickNotice = isset($_GET['notice']) && in_array($_GET['notice'], $allowedQuickNotices, true)
     ? $_GET['notice']
     : null;
@@ -142,6 +146,10 @@ if ($page === 'home' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if ($channelId && $name && $url) {
+                require_once __DIR__ . '/config/plan_limits.php';
+                if (!plan_limits_can_add_channel($pdo, $uid)) {
+                    $redirectHome('channel_limit');
+                }
                 if ($controller->add($name, $channelId, $url, $categoryId)) {
                     $redirectHome('channel_ok');
                 }
@@ -281,6 +289,11 @@ $todayTime = $todaySeconds >= 3600
 /* =========================
    📂 分類篩選（須先於待看／已看／已訂閱查詢）
 ========================= */
+require_once __DIR__ . '/config/plan_limits.php';
+$_maxVideosList = plan_limits_max_videos_per_list($pdo, $uid);
+$videoListSqlLimit = ($_maxVideosList === null) ? 999999 : (int)$_maxVideosList;
+$isFreePlan = plan_limits_is_free($pdo, $uid);
+
 $filterCategoryId = isset($_GET['category_id']) ? (int)$_GET['category_id'] : 0;
 $filterCategoryName = null;
 if ($filterCategoryId > 0) {
@@ -303,7 +316,7 @@ if ($filterCategoryId > 0) {
             AND v.user_id = ch.user_id
         WHERE v.user_id = ? AND v.is_watched = 0 AND ch.category_id = ?
         ORDER BY ch.name ASC, v.published_at DESC
-        LIMIT 120
+        LIMIT {$videoListSqlLimit}
     ");
     $stmt->execute([$uid, $filterCategoryId]);
     $latestVideos = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -315,7 +328,7 @@ if ($filterCategoryId > 0) {
             AND v.user_id = ch.user_id
         WHERE v.user_id = ? AND v.is_watched = 1 AND ch.category_id = ?
         ORDER BY ch.name ASC, COALESCE(v.watched_at, v.added_at) DESC
-        LIMIT 120
+        LIMIT {$videoListSqlLimit}
     ");
     $stmt->execute([$uid, $filterCategoryId]);
     $latestWatchedVideos = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -325,7 +338,7 @@ if ($filterCategoryId > 0) {
         SELECT * FROM videos 
         WHERE user_id = ? AND is_watched = 0 
         ORDER BY published_at DESC 
-        LIMIT 6
+        LIMIT {$videoListSqlLimit}
     ");
     $stmt->execute([$uid]);
     $latestVideos = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -334,7 +347,7 @@ if ($filterCategoryId > 0) {
         SELECT * FROM videos 
         WHERE user_id = ? AND is_watched = 1 
         ORDER BY COALESCE(watched_at, added_at) DESC 
-        LIMIT 6
+        LIMIT {$videoListSqlLimit}
     ");
     $stmt->execute([$uid]);
     $latestWatchedVideos = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -873,9 +886,14 @@ body {
     <div class="site-user">
         <?= htmlspecialchars($currentAuthUser['name'] !== '' ? $currentAuthUser['name'] : $currentAuthUser['email']) ?>
         <span style="color:#999;">(<?= htmlspecialchars($currentAuthUser['email']) ?>)</span>
+        <a href="index.php?page=account">會員中心</a>
         <a href="index.php?page=logout">登出</a>
     </div>
 </header>
+
+<?php if (!empty($isFreePlan)): ?>
+<p style="font-size:13px;color:#64748b;margin:0 0 16px;">免費版：待看／已看列表各最多顯示 <?= (int)PLAN_FREE_MAX_VIDEOS_PER_LIST ?> 筆；頻道與分類各最多 <?= (int)PLAN_FREE_MAX_CHANNELS ?> 個。</p>
+<?php endif; ?>
 
 <!-- KPI -->
 <div class="cards">
@@ -894,6 +912,7 @@ body {
         $noticeTexts = [
             'channel_ok' => '✅ 頻道已成功新增。',
             'channel_err' => '⚠️ 無法新增頻道（頻道已存在、網址格式錯誤或無法從 YouTube 取得資料）。',
+            'channel_limit' => '⚠️ 免費版最多 ' . PLAN_FREE_MAX_CHANNELS . ' 個頻道，請刪除部分頻道或升級方案。',
             'video_ok' => '✅ 影片已加入已看清單。',
             'video_err' => '⚠️ 無法新增影片（連結無效、影片已存在或無法取得影片資訊）。',
         ];

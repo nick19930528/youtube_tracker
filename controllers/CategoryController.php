@@ -22,6 +22,10 @@ class CategoryController {
     }
 
     public function add($name) {
+        require_once __DIR__ . '/../config/plan_limits.php';
+        if (!plan_limits_can_add_category($this->pdo, $this->userId)) {
+            return false;
+        }
         $stmt = $this->pdo->prepare("INSERT INTO channel_categories (user_id, name) VALUES (?, ?)");
         return $stmt->execute([$this->userId, $name]);
     }

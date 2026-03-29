@@ -7,6 +7,9 @@ $pdo = (new Database())->getConnection();
 $uid = auth_user_id();
 $controller = new VideoController($pdo, $uid);
 
+require_once __DIR__ . '/../../config/plan_limits.php';
+$videoCap = plan_limits_max_videos_per_list($pdo, $uid);
+
 $isWatched = isset($_GET['watched']) ? (int)$_GET['watched'] : 0;
 $keyword = trim($_GET['keyword'] ?? '');
 $orderBy = $_GET['sort'] ?? 'added_at';
@@ -20,8 +23,8 @@ $toggleDir = ($orderDir === 'asc') ? 'desc' : 'asc';
 $baseUrl = "index.php?page=videos&watched={$isWatched}" . ($keyword ? "&keyword=" . urlencode($keyword) : "");
 
 $videos = $keyword
-    ? $controller->search($isWatched, $keyword)
-    : $controller->list($isWatched, $orderBy, $orderDir);
+    ? $controller->search($isWatched, $keyword, $videoCap)
+    : $controller->list($isWatched, $orderBy, $orderDir, $videoCap);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['id']) && isset($_POST['delete'])) {
@@ -85,7 +88,11 @@ uasort($groupedVideos, function ($a, $b) {
             <?php endif; ?>
         </form>
 
-        <p>目前顯示 <?= count($videos) ?> 部影片</p>
+        <p>目前顯示 <?= count($videos) ?> 部影片<?php
+        if ($videoCap !== null) {
+            echo '（免費版此清單最多 ' . (int)PLAN_FREE_MAX_VIDEOS_PER_LIST . ' 筆）';
+        }
+        ?></p>
 
         <?php if ($isWatched): ?>
             <?php

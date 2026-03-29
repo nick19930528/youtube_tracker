@@ -40,6 +40,11 @@ class Channel {
             return false;
         }
 
+        require_once __DIR__ . '/../config/plan_limits.php';
+        if (!plan_limits_can_add_channel($this->pdo, $this->userId)) {
+            return false;
+        }
+
         $subscriberCount = 0;
         $videoCount = 0;
         $description = null;
