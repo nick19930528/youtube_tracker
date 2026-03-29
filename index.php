@@ -66,6 +66,23 @@ $latestVideos = $pdo->query("
     LIMIT 6
 ")->fetchAll(PDO::FETCH_ASSOC);
 
+$latestWatchedVideos = $pdo->query("
+    SELECT * FROM videos 
+    WHERE is_watched = 1 
+    ORDER BY COALESCE(watched_at, added_at) DESC 
+    LIMIT 6
+")->fetchAll(PDO::FETCH_ASSOC);
+
+/* =========================
+   📺 已訂閱頻道（Dashboard 區塊）
+========================= */
+$subscribedChannels = $pdo->query("
+    SELECT c.id, c.name, c.url, c.thumbnail_url, cc.name AS category_name
+    FROM channels c
+    LEFT JOIN channel_categories cc ON c.category_id = cc.id
+    ORDER BY c.name ASC
+")->fetchAll(PDO::FETCH_ASSOC);
+
 /* =========================
    📺 熱門頻道（影片最多）
 ========================= */
@@ -147,6 +164,92 @@ body {
     font-weight: bold;
 }
 
+.section-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.section-head h3 { margin: 0; }
+
+.video-tab-toggle {
+    display: inline-flex;
+    flex-wrap: wrap;
+    border: 1px solid #cce0f0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f0f6fb;
+}
+.video-tab {
+    border: none;
+    background: transparent;
+    color: #333;
+    padding: 8px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: inherit;
+}
+.video-tab:hover { background: rgba(0,119,204,0.08); }
+.video-tab.active {
+    background: #0077cc;
+    color: #fff;
+}
+.video-tab.active:hover { background: #0066b3; }
+
+.video-empty {
+    color: #888;
+    font-size: 14px;
+    margin: 0;
+}
+
+/* 已訂閱頻道：圖上名下、多欄填滿 */
+.subscribed-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 16px 12px;
+}
+.channel-card {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+    min-width: 0;
+}
+.channel-card-thumb {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 8px;
+    background: #e8ecf0;
+    display: block;
+}
+.channel-card-thumb--empty {
+    background: linear-gradient(145deg, #e8ecf0, #dde3ea);
+}
+.channel-card-body {
+    margin-top: 8px;
+    min-height: 2.6em;
+}
+.channel-card-name {
+    display: block;
+    font-size: 13px;
+    font-weight: bold;
+    line-height: 1.35;
+    color: #333;
+    text-decoration: none;
+    word-break: break-word;
+}
+.channel-card-name:hover { color: #0077cc; }
+.channel-card-cat {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #888;
+    line-height: 1.3;
+}
+
 /* 按鈕 */
 .btn {
     background: #0077cc;
@@ -200,24 +303,107 @@ body {
 
 <!-- 左邊：影片 -->
 <div class="section">
-    <h3>🎬 最新未看影片</h3>
-
-    <?php foreach ($latestVideos as $v): ?>
-        <div class="video">
-            <?php if ($v['thumbnail_url']): ?>
-                <img src="<?= htmlspecialchars($v['thumbnail_url']) ?>">
-            <?php endif; ?>
-
-            <div>
-                <a href="<?= $v['youtube_url'] ?>" target="_blank">
-                    <?= htmlspecialchars($v['title']) ?>
-                </a>
-                <br>
-                <small><?= htmlspecialchars($v['channel_name']) ?></small>
-            </div>
+    <div class="section-head">
+        <h3>🎬 最新影片</h3>
+        <div class="video-tab-toggle" role="tablist" aria-label="待看、已看與已訂閱頻道">
+            <button type="button" class="video-tab active" role="tab" aria-selected="true" data-panel="unwatched" id="tab-unwatched">📋 待看</button>
+            <button type="button" class="video-tab" role="tab" aria-selected="false" data-panel="watched" id="tab-watched">✅ 已看</button>
+            <button type="button" class="video-tab" role="tab" aria-selected="false" data-panel="subscribed" id="tab-subscribed">📺 已訂閱</button>
         </div>
-    <?php endforeach; ?>
+    </div>
+
+    <div id="panel-unwatched" class="video-panel" role="tabpanel" aria-labelledby="tab-unwatched">
+        <?php if (empty($latestVideos)): ?>
+            <p class="video-empty">目前沒有待看影片。</p>
+        <?php else: ?>
+            <?php foreach ($latestVideos as $v): ?>
+                <div class="video">
+                    <?php if ($v['thumbnail_url']): ?>
+                        <img src="<?= htmlspecialchars($v['thumbnail_url']) ?>" alt="">
+                    <?php endif; ?>
+
+                    <div>
+                        <a href="<?= htmlspecialchars($v['youtube_url']) ?>" target="_blank" rel="noopener noreferrer">
+                            <?= htmlspecialchars($v['title']) ?>
+                        </a>
+                        <br>
+                        <small><?= htmlspecialchars($v['channel_name'] ?? '') ?></small>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </div>
+
+    <div id="panel-watched" class="video-panel" role="tabpanel" aria-labelledby="tab-watched" hidden>
+        <?php if (empty($latestWatchedVideos)): ?>
+            <p class="video-empty">目前沒有已看影片。</p>
+        <?php else: ?>
+            <?php foreach ($latestWatchedVideos as $v): ?>
+                <div class="video">
+                    <?php if ($v['thumbnail_url']): ?>
+                        <img src="<?= htmlspecialchars($v['thumbnail_url']) ?>" alt="">
+                    <?php endif; ?>
+
+                    <div>
+                        <a href="<?= htmlspecialchars($v['youtube_url']) ?>" target="_blank" rel="noopener noreferrer">
+                            <?= htmlspecialchars($v['title']) ?>
+                        </a>
+                        <br>
+                        <small><?= htmlspecialchars($v['channel_name'] ?? '') ?></small>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </div>
+
+    <div id="panel-subscribed" class="video-panel" role="tabpanel" aria-labelledby="tab-subscribed" hidden>
+        <?php if (empty($subscribedChannels)): ?>
+            <p class="video-empty">尚未加入任何頻道。<a href="index.php?page=channels">前往頻道管理</a></p>
+        <?php else: ?>
+            <div class="subscribed-grid">
+                <?php foreach ($subscribedChannels as $ch): ?>
+                    <article class="channel-card">
+                        <?php if (!empty($ch['thumbnail_url'])): ?>
+                            <img class="channel-card-thumb" src="<?= htmlspecialchars($ch['thumbnail_url']) ?>" alt="">
+                        <?php else: ?>
+                            <span class="channel-card-thumb channel-card-thumb--empty" role="img" aria-label="無頻道圖片"></span>
+                        <?php endif; ?>
+                        <div class="channel-card-body">
+                            <a class="channel-card-name" href="<?= htmlspecialchars($ch['url']) ?>" target="_blank" rel="noopener noreferrer">
+                                <?= htmlspecialchars($ch['name']) ?>
+                            </a>
+                            <?php if (!empty($ch['category_name'])): ?>
+                                <span class="channel-card-cat"><?= htmlspecialchars($ch['category_name']) ?></span>
+                            <?php endif; ?>
+                        </div>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
 </div>
+
+<script>
+(function () {
+    var tabs = document.querySelectorAll('.video-tab');
+    var panels = document.querySelectorAll('.video-panel');
+    if (!tabs.length || !panels.length) return;
+
+    tabs.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var key = btn.getAttribute('data-panel');
+            tabs.forEach(function (b) {
+                var on = b.getAttribute('data-panel') === key;
+                b.classList.toggle('active', on);
+                b.setAttribute('aria-selected', on ? 'true' : 'false');
+            });
+            panels.forEach(function (p) {
+                p.hidden = p.id !== 'panel-' + key;
+            });
+        });
+    });
+})();
+</script>
 
 <!-- 右邊 -->
 <div>
