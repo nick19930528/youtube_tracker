@@ -9,13 +9,8 @@ if ($page === 'logout') {
     exit;
 }
 
-if ($page === 'login') {
-    require __DIR__ . '/views/auth/login.php';
-    exit;
-}
-
-if ($page === 'register') {
-    require __DIR__ . '/views/auth/register.php';
+if ($page === 'login' || $page === 'register') {
+    require __DIR__ . '/views/auth/auth.php';
     exit;
 }
 
@@ -575,9 +570,18 @@ $uncategorizedChannelCount = (int) $stmt->fetchColumn();
 
 <style>
 body {
-    font-family: Arial;
-    background: #f5f7fa;
+    font-family: Arial, "Segoe UI", system-ui, "PingFang TC", "Microsoft JhengHei", sans-serif;
+    margin: 0;
+    min-height: 100vh;
+    box-sizing: border-box;
     padding: 30px;
+    color: #0f172a;
+    background-color: #f1f5f9;
+    background-image:
+        url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%2394a3b8' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/svg%3E"),
+        radial-gradient(ellipse 90% 70% at 100% 0%, rgba(59, 130, 246, 0.14), transparent 55%),
+        radial-gradient(ellipse 70% 55% at 0% 100%, rgba(14, 165, 233, 0.1), transparent 50%),
+        linear-gradient(165deg, #f8fafc 0%, #f1f5f9 45%, #eef2f7 100%);
 }
 
 /* KPI + 快速操作（橫列：左直向 KPI、右快速操作） */

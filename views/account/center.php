@@ -126,53 +126,158 @@ $fetchMaxPerChannel = isset($profile['fetch_max_per_channel']) ? (int) $profile[
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f1f5f9">
     <title>會員中心 — YouTube Tracker</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #f5f7fa; margin: 0; padding: 24px; color: #333; }
-        .wrap { max-width: 720px; margin: 0 auto; }
-        .nav { margin-bottom: 20px; font-size: 14px; }
-        .nav a { color: #0077cc; margin-right: 12px; }
-        h1 { font-size: 1.35rem; margin: 0 0 8px; }
-        .sub { color: #666; font-size: 14px; margin-bottom: 24px; }
-        .card {
-            background: #fff;
-            border-radius: 12px;
-            padding: 22px 24px;
-            margin-bottom: 18px;
-            box-shadow: 0 2px 8px rgba(0,0,0,.06);
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            font-family: "Segoe UI", system-ui, -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            padding: 0 20px 40px;
+            color: #0f172a;
+            background-color: #f1f5f9;
+            background-image:
+                url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%2394a3b8' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/svg%3E"),
+                radial-gradient(ellipse 90% 70% at 100% 0%, rgba(59, 130, 246, 0.14), transparent 55%),
+                radial-gradient(ellipse 70% 55% at 0% 100%, rgba(14, 165, 233, 0.1), transparent 50%),
+                linear-gradient(165deg, #f8fafc 0%, #f1f5f9 45%, #eef2f7 100%);
         }
-        .card h2 { font-size: 1.05rem; margin: 0 0 16px; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
-        .row { margin-bottom: 12px; font-size: 14px; }
+        .account-top {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 16px 0 8px;
+        }
+        .account-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #2563eb;
+            text-decoration: none;
+            padding: 8px 4px;
+            border-radius: 10px;
+            transition: background 0.15s, color 0.15s;
+        }
+        .account-back:hover { background: rgba(37, 99, 235, 0.08); color: #1d4ed8; }
+        .account-back span { font-size: 1.1rem; line-height: 1; }
+        .wrap { max-width: 720px; margin: 0 auto; }
+        .page-head { margin-bottom: 22px; }
+        h1 { font-size: 1.5rem; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.02em; }
+        .sub { color: #64748b; font-size: 0.92rem; margin: 0; line-height: 1.45; }
+        .card {
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            border-radius: 16px;
+            padding: 22px 24px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 10px 24px -8px rgba(15, 23, 42, 0.08);
+        }
+        .card h2 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin: 0 0 16px;
+            color: #0f172a;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 12px;
+        }
+        .row { margin-bottom: 12px; font-size: 14px; line-height: 1.5; }
         .row strong { display: inline-block; min-width: 100px; color: #64748b; font-weight: 600; }
-        label { display: block; margin-bottom: 6px; font-size: 13px; color: #475569; }
+        label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: #475569; }
         input[type="text"], input[type="password"], input[type="number"], select {
-            width: 100%; max-width: 360px; box-sizing: border-box; padding: 9px 11px;
-            border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px;
+            width: 100%;
+            max-width: 400px;
+            padding: 11px 13px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: inherit;
+            color: #0f172a;
+            background: #fff;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        input:hover, select:hover { border-color: #cbd5e1; }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+        select {
+            appearance: none;
+            -webkit-appearance: none;
+            max-width: 400px;
+            padding-right: 36px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            cursor: pointer;
         }
         input[type="number"].input-narrow { max-width: 120px; }
         button[type="submit"] {
-            margin-top: 12px; padding: 10px 18px; background: #0077cc; color: #fff; border: none;
-            border-radius: 8px; font-size: 14px; cursor: pointer;
+            margin-top: 14px;
+            padding: 11px 20px;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+            transition: transform 0.15s, box-shadow 0.15s;
         }
-        button[type="submit"]:hover { background: #0066b3; }
-        .hint { font-size: 12px; color: #64748b; margin-top: 6px; }
-        .alert { padding: 10px 14px; border-radius: 8px; margin-bottom: 18px; font-size: 14px; }
+        button[type="submit"]:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+        }
+        button[type="submit"]:active { transform: translateY(0); }
+        .hint { font-size: 12px; color: #64748b; margin-top: 6px; line-height: 1.45; }
+        .alert {
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.45;
+        }
         .alert--ok { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
         .alert--err { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
-        .plan-badge { display: inline-block; background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 13px; }
+        .plan-badge {
+            display: inline-block;
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 13px;
+        }
         .muted { color: #94a3b8; font-size: 13px; }
+        .btn-upgrade {
+            display: inline-block;
+            margin-top: 16px;
+            padding: 10px 18px;
+            background: linear-gradient(135deg, #0369a1 0%, #0c4a6e 100%);
+            color: #fff !important;
+            text-decoration: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(3, 105, 161, 0.35);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .btn-upgrade:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(3, 105, 161, 0.4); }
     </style>
 </head>
 <body>
+<header class="account-top">
+    <a class="account-back" href="index.php"><span aria-hidden="true">←</span> 回首頁</a>
+</header>
 <div class="wrap">
-    <div class="nav">
-        <a href="index.php">回首頁</a>
-        <a href="index.php?page=channels">頻道管理</a>
-        <a href="index.php?page=logout">登出</a>
+    <div class="page-head">
+        <h1>會員中心</h1>
+        <p class="sub">管理個人資料、密碼與查看訂閱方案</p>
     </div>
-
-    <h1>會員中心</h1>
-    <p class="sub">管理個人資料、密碼與查看訂閱方案</p>
 
     <?php if ($noticeText !== ''): ?>
         <div class="alert <?= (strpos($notice, 'pwd:') === 0 || $notice === 'profile_err' || $notice === 'dash_pref_err' || $notice === 'fetch_pref_err') ? 'alert--err' : 'alert--ok' ?>">
@@ -302,8 +407,8 @@ $fetchMaxPerChannel = isset($profile['fetch_max_per_channel']) ? (int) $profile[
         $canMpg = payment_minimal_is_configured();
         ?>
         <?php if ($slugNow === 'free' && $canMpg): ?>
-            <p style="margin-top: 16px; margin-bottom: 0;">
-                <a href="index.php?page=pay" style="display:inline-block;padding:10px 16px;background:#0369a1;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;">升級 Go（MPG 一次付清 · 最小單元）</a>
+            <p style="margin: 0;">
+                <a class="btn-upgrade" href="index.php?page=pay">升級 Go（MPG 一次付清 · 最小單元）</a>
             </p>
             <p class="hint" style="margin-top: 10px; margin-bottom: 0;">使用藍新 MPG 幕前一次付清；請先執行資料庫 migration <code>006_payment_orders_minimal.sql</code> 並設定 <code>MPG_*</code> 金鑰。</p>
         <?php elseif ($slugNow === 'free'): ?>
