@@ -17,9 +17,14 @@ class Channel {
         ";
         $params = [$this->userId];
 
-        if ($categoryId) {
-            $sql .= " AND c.category_id = ?";
-            $params[] = $categoryId;
+        if ($categoryId !== null && $categoryId !== '') {
+            $cid = (int) $categoryId;
+            if ($cid === FILTER_CATEGORY_UNCATEGORIZED) {
+                $sql .= ' AND c.category_id IS NULL';
+            } elseif ($cid > 0) {
+                $sql .= ' AND c.category_id = ?';
+                $params[] = $cid;
+            }
         }
 
         if ($keyword) {

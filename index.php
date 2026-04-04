@@ -109,7 +109,7 @@ if ($page === 'home' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $q = ['notice' => $notice];
         if (!empty($_POST['home_category_id'])) {
             $cid = (int)$_POST['home_category_id'];
-            if ($cid > 0) {
+            if ($cid === FILTER_CATEGORY_UNCATEGORIZED || $cid > 0) {
                 $q['category_id'] = $cid;
             }
         }
@@ -311,17 +311,24 @@ require_once __DIR__ . '/config/plan_limits.php';
 $_maxVideosList = plan_limits_max_videos_per_list($pdo, $uid);
 $quotaBannerText = plan_limits_quota_banner_text($pdo, $uid);
 
-$filterCategoryId = isset($_GET['category_id']) ? (int)$_GET['category_id'] : 0;
+$rawCategoryId = isset($_GET['category_id']) ? (int)$_GET['category_id'] : 0;
+$filterCategoryId = 0;
 $filterCategoryName = null;
-if ($filterCategoryId > 0) {
+if ($rawCategoryId === FILTER_CATEGORY_UNCATEGORIZED) {
+    $filterCategoryId = FILTER_CATEGORY_UNCATEGORIZED;
+    $filterCategoryName = '未分類';
+} elseif ($rawCategoryId > 0) {
     $stmt = $pdo->prepare("SELECT name FROM channel_categories WHERE id = ? AND user_id = ?");
-    $stmt->execute([$filterCategoryId, $uid]);
+    $stmt->execute([$rawCategoryId, $uid]);
     $filterCategoryName = $stmt->fetchColumn();
     if ($filterCategoryName === false) {
         $filterCategoryId = 0;
         $filterCategoryName = null;
+    } else {
+        $filterCategoryId = $rawCategoryId;
     }
 }
+$hasCategoryFilter = ($filterCategoryId !== 0);
 
 if (!isset($_SESSION['dash_auto_load']) && $uid > 0) {
     try {
@@ -388,6 +395,47 @@ if ($filterCategoryId > 0) {
     ");
     $stmt->execute([$uid, $filterCategoryId]);
     $latestWatchedVideos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} elseif ($filterCategoryId === FILTER_CATEGORY_UNCATEGORIZED) {
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*) FROM videos v
+        INNER JOIN channels ch ON v.channel_name COLLATE utf8mb4_unicode_ci = ch.name COLLATE utf8mb4_unicode_ci
+            AND v.user_id = ch.user_id
+        WHERE v.user_id = ? AND v.is_watched = 0 AND ch.category_id IS NULL
+    ");
+    $stmt->execute([$uid]);
+    $dashUnwatchedTotal = (int) $stmt->fetchColumn();
+
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*) FROM videos v
+        INNER JOIN channels ch ON v.channel_name COLLATE utf8mb4_unicode_ci = ch.name COLLATE utf8mb4_unicode_ci
+            AND v.user_id = ch.user_id
+        WHERE v.user_id = ? AND v.is_watched = 1 AND ch.category_id IS NULL
+    ");
+    $stmt->execute([$uid]);
+    $dashWatchedTotal = (int) $stmt->fetchColumn();
+
+    $lim = (int) $dashVideoInitialLimit;
+    $stmt = $pdo->prepare("
+        SELECT v.* FROM videos v
+        INNER JOIN channels ch ON v.channel_name COLLATE utf8mb4_unicode_ci = ch.name COLLATE utf8mb4_unicode_ci
+            AND v.user_id = ch.user_id
+        WHERE v.user_id = ? AND v.is_watched = 0 AND ch.category_id IS NULL
+        ORDER BY ch.name ASC, v.published_at DESC
+        LIMIT {$lim}
+    ");
+    $stmt->execute([$uid]);
+    $latestVideos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $stmt = $pdo->prepare("
+        SELECT v.* FROM videos v
+        INNER JOIN channels ch ON v.channel_name COLLATE utf8mb4_unicode_ci = ch.name COLLATE utf8mb4_unicode_ci
+            AND v.user_id = ch.user_id
+        WHERE v.user_id = ? AND v.is_watched = 1 AND ch.category_id IS NULL
+        ORDER BY ch.name ASC, COALESCE(v.watched_at, v.added_at) DESC
+        LIMIT {$lim}
+    ");
+    $stmt->execute([$uid]);
+    $latestWatchedVideos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } else {
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM videos WHERE user_id = ? AND is_watched = 0");
     $stmt->execute([$uid]);
@@ -430,6 +478,8 @@ $dashMoreWatched = ($dashAutoLoadPref === 1) && ($dashWatchedLoaded < $dashWatch
 $subscribedCountSql = 'SELECT COUNT(*) FROM channels c WHERE c.user_id = ? ';
 if ($filterCategoryId > 0) {
     $subscribedCountSql .= ' AND c.category_id = ? ';
+} elseif ($filterCategoryId === FILTER_CATEGORY_UNCATEGORIZED) {
+    $subscribedCountSql .= ' AND c.category_id IS NULL ';
 }
 $stmt = $pdo->prepare($subscribedCountSql);
 if ($filterCategoryId > 0) {
@@ -449,6 +499,8 @@ $subscribedSql = "
 ";
 if ($filterCategoryId > 0) {
     $subscribedSql .= " AND c.category_id = ? ";
+} elseif ($filterCategoryId === FILTER_CATEGORY_UNCATEGORIZED) {
+    $subscribedSql .= " AND c.category_id IS NULL ";
 }
 $subscribedSql .= " ORDER BY c.name ASC LIMIT {$limCh}";
 
@@ -505,6 +557,10 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute([$uid]);
 $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$stmt = $pdo->prepare('SELECT COUNT(*) FROM channels WHERE user_id = ? AND category_id IS NULL');
+$stmt->execute([$uid]);
+$uncategorizedChannelCount = (int) $stmt->fetchColumn();
 ?>
 
 <!DOCTYPE html>
@@ -539,7 +595,7 @@ body {
 /* layout */
 .grid {
     display: grid;
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 1fr 2fr;
     gap: 20px;
 }
 
@@ -1027,6 +1083,17 @@ body {
     display: inline-block;
     vertical-align: top;
 }
+.category-item--system {
+    cursor: default;
+}
+.category-tags--edit .category-item--system {
+    cursor: default;
+    transform: none;
+    box-shadow: none;
+}
+.category-tags--edit .category-item--system .category--nav {
+    display: inline !important;
+}
 .category-tags--edit .category-item {
     cursor: grab;
     transform: translateY(-3px);
@@ -1077,6 +1144,50 @@ body {
     color: #64748b;
     font-size: 12px;
     white-space: nowrap;
+}
+.category-delete-btn {
+    display: none;
+    border: none;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 18px;
+    line-height: 1;
+    padding: 0 4px;
+    cursor: pointer;
+    font-family: inherit;
+    border-radius: 4px;
+}
+.category-delete-btn:hover {
+    color: #b91c1c;
+    background: #fef2f2;
+}
+.category-tags--edit .category-delete-btn {
+    display: inline-block;
+}
+.category-add-row {
+    display: none;
+    width: 100%;
+    flex-basis: 100%;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+.category-tags--edit .category-add-row {
+    display: flex;
+}
+.category-add-row input {
+    flex: 1 1 140px;
+    min-width: 120px;
+    max-width: 280px;
+    padding: 6px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+}
+.category-add-row .btn-outline {
+    flex-shrink: 0;
 }
 
 .btn-outline {
@@ -1172,16 +1283,13 @@ body {
         <a class="btn" href="index.php?page=channels">📺 頻道管理</a>
         <a class="btn" href="index.php?page=channel_categories">📂 分類管理</a>
         <a class="btn" href="scripts/fetch_new_videos.php" target="_blank" rel="noopener noreferrer">📡 抓新影片</a>
-        <button type="button" class="btn btn-outline" id="btnCategoryTagEdit" aria-pressed="false" title="切換後可拖曳排序、點名稱修改">
-            ✏️ 編輯分類標籤
-        </button>
     </div>
 
     <div class="quick-forms">
         <div class="quick-form-block">
             <h4>➕ 新增頻道</h4>
             <form method="post" action="index.php">
-                <input type="hidden" name="home_category_id" value="<?= $filterCategoryId > 0 ? (int)$filterCategoryId : '' ?>">
+                <input type="hidden" name="home_category_id" value="<?= $hasCategoryFilter ? (int)$filterCategoryId : '' ?>">
                 <input type="hidden" name="home_dash_tab" value="<?= htmlspecialchars($dashTabKey) ?>">
                 <div class="form-row">
                     <label for="channel_input">頻道網址 / @handle / Channel ID</label>
@@ -1206,7 +1314,7 @@ body {
         <div class="quick-form-block">
             <h4>➕ 新增影片</h4>
             <form method="post" action="index.php">
-                <input type="hidden" name="home_category_id" value="<?= $filterCategoryId > 0 ? (int)$filterCategoryId : '' ?>">
+                <input type="hidden" name="home_category_id" value="<?= $hasCategoryFilter ? (int)$filterCategoryId : '' ?>">
                 <input type="hidden" name="home_dash_tab" value="<?= htmlspecialchars($dashTabKey) ?>">
                 <div class="form-row">
                     <label for="video_url">YouTube 影片網址</label>
@@ -1221,7 +1329,74 @@ body {
 
 <div class="grid">
 
-<!-- 左邊：影片 -->
+<!-- 左側欄：我的最愛、分類 -->
+<div>
+
+    <!-- 我的最愛頻道 -->
+    <div class="section">
+        <h3>⭐ 我的最愛頻道</h3>
+        <?php if (empty($favoriteChannels)): ?>
+            <p class="video-empty">尚無最愛頻道。請在「📺 已訂閱」頻道卡游標移到圖片上，於右下角按「☆ 最愛」；亦可至 <a href="index.php?page=channels">頻道管理</a> 操作。</p>
+        <?php else: ?>
+            <?php foreach ($favoriteChannels as $c): ?>
+                <?php
+                $favUw = (int)($c['unwatched_count'] ?? 0);
+                $favWd = (int)($c['watched_count'] ?? 0);
+                $favCat = isset($c['category_name']) && $c['category_name'] !== '' ? $c['category_name'] : '未分類';
+                ?>
+                <div class="channel fav-channel-row">
+                    <a href="<?= htmlspecialchars($c['url']) ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars($c['name']) ?></a>
+                    <span class="fav-channel-meta">
+                        （ <?= $favUw ?> /  <?= $favWd ?> / <?= htmlspecialchars($favCat) ?>）
+                    </span>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </div>
+
+    <!-- 分類 -->
+    <div class="section">
+        <div class="section-head" style="margin-top:0;">
+            <h3>📂 分類</h3>
+            <button type="button" class="btn btn-outline" id="btnCategoryTagEdit" aria-pressed="false" title="切換後可拖曳排序、點名稱修改">
+                ✏️ 編輯分類標籤
+            </button>
+        </div>
+        <p class="video-empty" style="margin:0 0 10px;font-size:13px;"><strong>未分類</strong>為固定篩選（非資料庫標籤），僅顯示尚未指定分類的頻道。點 <strong>編輯分類標籤</strong> 後，可拖曳排序、改名、<strong>新增</strong>或<strong>刪除</strong>自訂分類；刪除分類時，該分類內的頻道將改為<strong>未分類</strong>。</p>
+        <div class="category-tags" id="categoryTags">
+            <div class="category-item category-item--system" draggable="false">
+                <a class="category category--nav<?= $filterCategoryId === FILTER_CATEGORY_UNCATEGORIZED ? ' category--active' : '' ?>" href="index.php?<?= http_build_query(['category_id' => FILTER_CATEGORY_UNCATEGORIZED, 'dash_tab' => $dashTabKey]) ?>">
+                    未分類 (<?= (int)$uncategorizedChannelCount ?>)
+                </a>
+            </div>
+            <div class="category-add-row" id="categoryAddRow">
+                <input type="text" id="categoryNewNameInput" maxlength="100" placeholder="新分類名稱" autocomplete="off" aria-label="新分類名稱">
+                <button type="button" class="btn btn-outline" id="btnCategoryAdd">➕ 新增標籤</button>
+            </div>
+            <?php foreach ($categories as $c): ?>
+                <?php
+                $cid = (int)$c['id'];
+                $ctotal = (int)$c['total'];
+                $isActive = ($filterCategoryId > 0 && $cid === $filterCategoryId);
+                ?>
+                <div class="category-item" data-id="<?= $cid ?>" data-name="<?= htmlspecialchars($c['name'], ENT_QUOTES, 'UTF-8') ?>" data-total="<?= $ctotal ?>" draggable="false">
+                    <a class="category category--nav<?= $isActive ? ' category--active' : '' ?>" href="index.php?<?= http_build_query(['category_id' => $cid, 'dash_tab' => $dashTabKey]) ?>">
+                        <?= htmlspecialchars($c['name']) ?> (<?= $ctotal ?>)
+                    </a>
+                    <div class="category category--editor">
+                        <span class="category-editor-grip" title="拖曳排序">⠿</span>
+                        <input type="text" class="category-editor-input" value="<?= htmlspecialchars($c['name']) ?>" maxlength="100" aria-label="分類名稱">
+                        <span class="category-editor-meta">(<?= $ctotal ?>)</span>
+                        <button type="button" class="category-delete-btn" data-category-delete="<?= $cid ?>" title="刪除此分類">×</button>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
+</div>
+
+<!-- 右側欄：最新影片 -->
 <div class="section">
     <div class="section-head">
         <h3>🎬 最新影片</h3>
@@ -1235,17 +1410,17 @@ body {
         </div>
     </div>
 
-    <?php if ($filterCategoryId > 0 && $filterCategoryName): ?>
+    <?php if ($hasCategoryFilter && $filterCategoryName): ?>
         <p class="category-filter-banner" style="margin-bottom:14px;">
-            目前分類：<strong><?= htmlspecialchars($filterCategoryName) ?></strong>
-            （待看／已看／已訂閱皆套用此分類）
+            目前<?= $filterCategoryId === FILTER_CATEGORY_UNCATEGORIZED ? '篩選' : '分類' ?>：<strong><?= htmlspecialchars($filterCategoryName) ?></strong>
+            （待看／已看／已訂閱皆套用）
             <a class="category-filter-clear" href="index.php?<?= http_build_query(['dash_tab' => $dashTabKey]) ?>">顯示全部</a>
         </p>
     <?php endif; ?>
 
     <div id="panel-unwatched" class="video-panel" role="tabpanel" aria-labelledby="tab-unwatched"<?= $dashTabKey !== 'unwatched' ? ' hidden' : '' ?>>
         <?php if ($dashUnwatchedTotal < 1): ?>
-            <p class="video-empty"><?= $filterCategoryId > 0 ? '此分類下尚無待看影片。' : '目前沒有待看影片。' ?></p>
+            <p class="video-empty"><?= $hasCategoryFilter ? '此篩選下尚無待看影片。' : '目前沒有待看影片。' ?></p>
         <?php else: ?>
             <div class="dash-feed-inner dash-feed-inner--videos"
                  data-dash-feed="unwatched"
@@ -1268,7 +1443,7 @@ body {
 
     <div id="panel-watched" class="video-panel" role="tabpanel" aria-labelledby="tab-watched"<?= $dashTabKey !== 'watched' ? ' hidden' : '' ?>>
         <?php if ($dashWatchedTotal < 1): ?>
-            <p class="video-empty"><?= $filterCategoryId > 0 ? '此分類下尚無已看影片。' : '目前沒有已看影片。' ?></p>
+            <p class="video-empty"><?= $hasCategoryFilter ? '此篩選下尚無已看影片。' : '目前沒有已看影片。' ?></p>
         <?php else: ?>
             <div class="dash-feed-inner dash-feed-inner--videos"
                  data-dash-feed="watched"
@@ -1291,8 +1466,8 @@ body {
 
     <div id="panel-subscribed" class="video-panel" role="tabpanel" aria-labelledby="tab-subscribed"<?= $dashTabKey !== 'subscribed' ? ' hidden' : '' ?>>
         <?php if ($dashSubscribedTotal < 1): ?>
-            <?php if ($filterCategoryId > 0): ?>
-                <p class="video-empty">此分類尚無已訂閱頻道。<a href="index.php?<?= http_build_query(['dash_tab' => $dashTabKey]) ?>">顯示全部</a> 或 <a href="index.php?page=channels">頻道管理</a></p>
+            <?php if ($hasCategoryFilter): ?>
+                <p class="video-empty">此篩選下尚無已訂閱頻道。<a href="index.php?<?= http_build_query(['dash_tab' => $dashTabKey]) ?>">顯示全部</a> 或 <a href="index.php?page=channels">頻道管理</a></p>
             <?php else: ?>
                 <p class="video-empty">尚未加入任何頻道。<a href="index.php?page=channels">前往頻道管理</a></p>
             <?php endif; ?>
@@ -1319,6 +1494,7 @@ body {
             <?php endif; ?>
         <?php endif; ?>
     </div>
+</div>
 </div>
 
 <script>
@@ -1610,72 +1786,31 @@ body {
 })();
 </script>
 
-<!-- 右邊 -->
-<div>
-
-    <!-- 我的最愛頻道 -->
-    <div class="section">
-        <h3>⭐ 我的最愛頻道</h3>
-        <?php if (empty($favoriteChannels)): ?>
-            <p class="video-empty">尚無最愛頻道。請在「📺 已訂閱」頻道卡游標移到圖片上，於右下角按「☆ 最愛」；亦可至 <a href="index.php?page=channels">頻道管理</a> 操作。</p>
-        <?php else: ?>
-            <?php foreach ($favoriteChannels as $c): ?>
-                <?php
-                $favUw = (int)($c['unwatched_count'] ?? 0);
-                $favWd = (int)($c['watched_count'] ?? 0);
-                $favCat = isset($c['category_name']) && $c['category_name'] !== '' ? $c['category_name'] : '未分類';
-                ?>
-                <div class="channel fav-channel-row">
-                    <a href="<?= htmlspecialchars($c['url']) ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars($c['name']) ?></a>
-                    <span class="fav-channel-meta">
-                        （ <?= $favUw ?> /  <?= $favWd ?> / <?= htmlspecialchars($favCat) ?>）
-                    </span>
-                </div>
-            <?php endforeach; ?>
-        <?php endif; ?>
-    </div>
-
-    <!-- 分類 -->
-    <div class="section">
-        <h3 style="margin-top:0;">📂 分類</h3>
-        <p class="video-empty" style="margin:0 0 10px;font-size:13px;">在「快速操作」可開啟 <strong>編輯分類標籤</strong>，標籤會浮起並可拖曳排序、直接改名。</p>
-        <div class="category-tags" id="categoryTags">
-            <?php foreach ($categories as $c): ?>
-                <?php
-                $cid = (int)$c['id'];
-                $ctotal = (int)$c['total'];
-                $isActive = ($filterCategoryId > 0 && $cid === $filterCategoryId);
-                ?>
-                <div class="category-item" data-id="<?= $cid ?>" data-name="<?= htmlspecialchars($c['name'], ENT_QUOTES, 'UTF-8') ?>" data-total="<?= $ctotal ?>" draggable="false">
-                    <a class="category category--nav<?= $isActive ? ' category--active' : '' ?>" href="index.php?<?= http_build_query(['category_id' => $cid, 'dash_tab' => $dashTabKey]) ?>">
-                        <?= htmlspecialchars($c['name']) ?> (<?= $ctotal ?>)
-                    </a>
-                    <div class="category category--editor">
-                        <span class="category-editor-grip" title="拖曳排序">⠿</span>
-                        <input type="text" class="category-editor-input" value="<?= htmlspecialchars($c['name']) ?>" maxlength="100" aria-label="分類名稱">
-                        <span class="category-editor-meta">(<?= $ctotal ?>)</span>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-        </div>
-    </div>
-
-</div>
-
-</div>
-
+<script>window.CATEGORY_DASH_TAB = <?= json_encode($dashTabKey, JSON_HEX_TAG | JSON_HEX_APOS | JSON_UNESCAPED_UNICODE) ?>;</script>
 <script>
 (function () {
     var wrap = document.getElementById('categoryTags');
     var btn = document.getElementById('btnCategoryTagEdit');
+    var btnAdd = document.getElementById('btnCategoryAdd');
+    var addInput = document.getElementById('categoryNewNameInput');
     var api = 'scripts/category_dashboard_api.php';
     if (!wrap || !btn) return;
 
     var editMode = false;
 
+    function categoryNavHref(id) {
+        var p = new URLSearchParams();
+        p.set('category_id', String(id));
+        p.set('dash_tab', window.CATEGORY_DASH_TAB || 'unwatched');
+        return 'index.php?' + p.toString();
+    }
+
     function setNavLabel(item, name, total) {
         var a = item.querySelector('.category--nav');
-        if (a) a.textContent = name + ' (' + total + ')';
+        if (a) {
+            a.textContent = name + ' (' + total + ')';
+            a.href = categoryNavHref(parseInt(item.getAttribute('data-id'), 10));
+        }
     }
 
     function postJson(body) {
@@ -1688,70 +1823,13 @@ body {
 
     function saveOrder() {
         var order = [];
-        wrap.querySelectorAll('.category-item').forEach(function (el) {
+        wrap.querySelectorAll('.category-item:not(.category-item--system)').forEach(function (el) {
             order.push(parseInt(el.getAttribute('data-id'), 10));
         });
         return postJson({ action: 'reorder', order: order });
     }
 
-    btn.addEventListener('click', function () {
-        editMode = !editMode;
-        wrap.classList.toggle('category-tags--edit', editMode);
-        btn.classList.toggle('is-active', editMode);
-        btn.setAttribute('aria-pressed', editMode ? 'true' : 'false');
-
-        wrap.querySelectorAll('.category-item').forEach(function (el) {
-            el.setAttribute('draggable', editMode ? 'true' : 'false');
-        });
-
-        if (!editMode) {
-            saveOrder().then(function (res) {
-                if (res && res.ok) {
-                    window.location.reload();
-                }
-            }).catch(function () {
-                window.location.reload();
-            });
-        }
-    });
-
-    var dragEl = null;
-    wrap.addEventListener('dragstart', function (e) {
-        if (!editMode) return;
-        var row = e.target.closest('.category-item');
-        if (!row || !wrap.contains(row)) return;
-        dragEl = row;
-        row.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', String(row.getAttribute('data-id')));
-    });
-
-    wrap.addEventListener('dragend', function (e) {
-        var row = e.target.closest('.category-item');
-        if (row) row.classList.remove('dragging');
-        dragEl = null;
-    });
-
-    wrap.addEventListener('dragover', function (e) {
-        if (!editMode || !dragEl) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        var row = e.target.closest('.category-item');
-        if (!row || row === dragEl || !wrap.contains(row)) return;
-        var rect = row.getBoundingClientRect();
-        var mid = rect.top + rect.height / 2;
-        if (e.clientY < mid) {
-            wrap.insertBefore(dragEl, row);
-        } else {
-            wrap.insertBefore(dragEl, row.nextSibling);
-        }
-    });
-
-    wrap.addEventListener('drop', function (e) {
-        e.preventDefault();
-    });
-
-    wrap.querySelectorAll('.category-editor-input').forEach(function (input) {
+    function bindEditorInput(input) {
         input.addEventListener('keydown', function (e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -1781,7 +1859,186 @@ body {
                 input.value = prev;
             });
         });
+    }
+
+    function createCategoryItem(id, name, total) {
+        var item = document.createElement('div');
+        item.className = 'category-item';
+        item.setAttribute('data-id', String(id));
+        item.setAttribute('data-name', name);
+        item.setAttribute('data-total', String(total));
+        item.setAttribute('draggable', editMode ? 'true' : 'false');
+
+        var a = document.createElement('a');
+        a.className = 'category category--nav';
+        a.href = categoryNavHref(id);
+        a.textContent = name + ' (' + total + ')';
+
+        var ed = document.createElement('div');
+        ed.className = 'category category--editor';
+
+        var grip = document.createElement('span');
+        grip.className = 'category-editor-grip';
+        grip.title = '拖曳排序';
+        grip.textContent = '⠿';
+
+        var inp = document.createElement('input');
+        inp.type = 'text';
+        inp.className = 'category-editor-input';
+        inp.value = name;
+        inp.maxLength = 100;
+        inp.setAttribute('aria-label', '分類名稱');
+
+        var meta = document.createElement('span');
+        meta.className = 'category-editor-meta';
+        meta.textContent = '(' + total + ')';
+
+        var del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'category-delete-btn';
+        del.setAttribute('data-category-delete', String(id));
+        del.title = '刪除此分類';
+        del.setAttribute('aria-label', '刪除');
+        del.textContent = '×';
+
+        ed.appendChild(grip);
+        ed.appendChild(inp);
+        ed.appendChild(meta);
+        ed.appendChild(del);
+
+        item.appendChild(a);
+        item.appendChild(ed);
+        bindEditorInput(inp);
+        return item;
+    }
+
+    function tryAddCategory() {
+        if (!editMode || !addInput) return;
+        var name = addInput.value.trim();
+        if (name === '') return;
+        postJson({ action: 'add', name: name }).then(function (res) {
+            if (!res || !res.ok) {
+                if (res && res.error === 'duplicate') {
+                    alert('已有相同名稱的分類。');
+                } else {
+                    alert('新增失敗。');
+                }
+                return;
+            }
+            addInput.value = '';
+            var item = createCategoryItem(res.id, res.name, 0);
+            wrap.appendChild(item);
+        }).catch(function () {
+            alert('新增失敗。');
+        });
+    }
+
+    btn.addEventListener('click', function () {
+        editMode = !editMode;
+        wrap.classList.toggle('category-tags--edit', editMode);
+        btn.classList.toggle('is-active', editMode);
+        btn.setAttribute('aria-pressed', editMode ? 'true' : 'false');
+
+        wrap.querySelectorAll('.category-item').forEach(function (el) {
+            var sys = el.classList.contains('category-item--system');
+            el.setAttribute('draggable', (editMode && !sys) ? 'true' : 'false');
+        });
+
+        if (!editMode) {
+            saveOrder().then(function (res) {
+                if (res && res.ok) {
+                    window.location.reload();
+                }
+            }).catch(function () {
+                window.location.reload();
+            });
+        }
     });
+
+    if (btnAdd) {
+        btnAdd.addEventListener('click', function (e) {
+            e.preventDefault();
+            tryAddCategory();
+        });
+    }
+    if (addInput) {
+        addInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                tryAddCategory();
+            }
+        });
+    }
+
+    wrap.addEventListener('click', function (e) {
+        var del = e.target.closest('.category-delete-btn');
+        if (!del || !editMode) return;
+        e.preventDefault();
+        var id = parseInt(del.getAttribute('data-category-delete'), 10);
+        if (id < 1) return;
+        if (!confirm('確定要刪除此分類？若分類內有頻道，這些頻道將改為「未分類」。')) return;
+        postJson({ action: 'delete', id: id }).then(function (res) {
+            if (!res || !res.ok) {
+                alert('刪除失敗。');
+                return;
+            }
+            var item = del.closest('.category-item');
+            var params = new URLSearchParams(window.location.search);
+            var curCat = parseInt(params.get('category_id') || '0', 10);
+            if (item) item.remove();
+            if (id === curCat) {
+                window.location.href = 'index.php?' + new URLSearchParams({ dash_tab: window.CATEGORY_DASH_TAB || 'unwatched' }).toString();
+            }
+        }).catch(function () {
+            alert('刪除失敗。');
+        });
+    });
+
+    var dragEl = null;
+    wrap.addEventListener('dragstart', function (e) {
+        if (!editMode) return;
+        var row = e.target.closest('.category-item');
+        if (!row || !wrap.contains(row) || row.classList.contains('category-item--system')) return;
+        dragEl = row;
+        row.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', String(row.getAttribute('data-id')));
+    });
+
+    wrap.addEventListener('dragend', function (e) {
+        var row = e.target.closest('.category-item');
+        if (row) row.classList.remove('dragging');
+        dragEl = null;
+    });
+
+    wrap.addEventListener('dragover', function (e) {
+        if (!editMode || !dragEl) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        var row = e.target.closest('.category-item');
+        if (!row || row === dragEl || !wrap.contains(row)) return;
+        if (row.classList.contains('category-item--system')) {
+            var addRow = document.getElementById('categoryAddRow');
+            var anchor = addRow && addRow.nextSibling ? addRow.nextSibling : row.nextSibling;
+            if (anchor && anchor !== dragEl) {
+                wrap.insertBefore(dragEl, anchor);
+            }
+            return;
+        }
+        var rect = row.getBoundingClientRect();
+        var mid = rect.top + rect.height / 2;
+        if (e.clientY < mid) {
+            wrap.insertBefore(dragEl, row);
+        } else {
+            wrap.insertBefore(dragEl, row.nextSibling);
+        }
+    });
+
+    wrap.addEventListener('drop', function (e) {
+        e.preventDefault();
+    });
+
+    wrap.querySelectorAll('.category-editor-input').forEach(bindEditorInput);
 })();
 </script>
 

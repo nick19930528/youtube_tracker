@@ -40,12 +40,16 @@ try {
 }
 
 $categoryId = isset($_GET['category_id']) ? (int) $_GET['category_id'] : 0;
-if ($categoryId > 0) {
+if ($categoryId === FILTER_CATEGORY_UNCATEGORIZED) {
+    // 保留：非 DB 之「未分類」篩選
+} elseif ($categoryId > 0) {
     $stmt = $pdo->prepare('SELECT id FROM channel_categories WHERE id = ? AND user_id = ?');
     $stmt->execute([$categoryId, $uid]);
     if ($stmt->fetchColumn() === false) {
         $categoryId = 0;
     }
+} else {
+    $categoryId = 0;
 }
 
 $_maxVideosList = plan_limits_max_videos_per_list($pdo, $uid);
@@ -60,6 +64,8 @@ if ($tab === 'subscribed') {
     $countSql = 'SELECT COUNT(*) FROM channels c WHERE c.user_id = ? ';
     if ($categoryId > 0) {
         $countSql .= ' AND c.category_id = ? ';
+    } elseif ($categoryId === FILTER_CATEGORY_UNCATEGORIZED) {
+        $countSql .= ' AND c.category_id IS NULL ';
     }
     $stmt = $pdo->prepare($countSql);
     if ($categoryId > 0) {
@@ -84,6 +90,8 @@ if ($tab === 'subscribed') {
     ";
     if ($categoryId > 0) {
         $sql .= ' AND c.category_id = ? ';
+    } elseif ($categoryId === FILTER_CATEGORY_UNCATEGORIZED) {
+        $sql .= ' AND c.category_id IS NULL ';
     }
     $sql .= ' ORDER BY c.name ASC LIMIT ' . (int) $take . ' OFFSET ' . (int) $offset;
 
@@ -112,6 +120,14 @@ if ($categoryId > 0) {
         WHERE v.user_id = ? AND v.is_watched = ? AND ch.category_id = ?
     ");
     $stmt->execute([$uid, $isWatched, $categoryId]);
+} elseif ($categoryId === FILTER_CATEGORY_UNCATEGORIZED) {
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*) FROM videos v
+        INNER JOIN channels ch ON v.channel_name COLLATE utf8mb4_unicode_ci = ch.name COLLATE utf8mb4_unicode_ci
+            AND v.user_id = ch.user_id
+        WHERE v.user_id = ? AND v.is_watched = ? AND ch.category_id IS NULL
+    ");
+    $stmt->execute([$uid, $isWatched]);
 } else {
     $stmt = $pdo->prepare('SELECT COUNT(*) FROM videos WHERE user_id = ? AND is_watched = ?');
     $stmt->execute([$uid, $isWatched]);
@@ -151,6 +167,28 @@ if ($categoryId > 0) {
     }
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$uid, $categoryId]);
+} elseif ($categoryId === FILTER_CATEGORY_UNCATEGORIZED) {
+    if ($isWatched === 0) {
+        $sql = "
+            SELECT v.* FROM videos v
+            INNER JOIN channels ch ON v.channel_name COLLATE utf8mb4_unicode_ci = ch.name COLLATE utf8mb4_unicode_ci
+                AND v.user_id = ch.user_id
+            WHERE v.user_id = ? AND v.is_watched = 0 AND ch.category_id IS NULL
+            ORDER BY ch.name ASC, v.published_at DESC
+            LIMIT {$lim} OFFSET {$off}
+        ";
+    } else {
+        $sql = "
+            SELECT v.* FROM videos v
+            INNER JOIN channels ch ON v.channel_name COLLATE utf8mb4_unicode_ci = ch.name COLLATE utf8mb4_unicode_ci
+                AND v.user_id = ch.user_id
+            WHERE v.user_id = ? AND v.is_watched = 1 AND ch.category_id IS NULL
+            ORDER BY ch.name ASC, COALESCE(v.watched_at, v.added_at) DESC
+            LIMIT {$lim} OFFSET {$off}
+        ";
+    }
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$uid]);
 } else {
     if ($isWatched === 0) {
         $sql = "

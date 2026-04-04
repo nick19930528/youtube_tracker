@@ -12,18 +12,14 @@ $categoryAddError = '';
 // 表單處理
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['add'])) {
-        require_once __DIR__ . '/../../config/plan_limits.php';
-        if (!plan_limits_can_add_category($pdo, $uid)) {
-            $categoryAddError = '您目前方案最多 ' . (int)plan_limits_max_categories($pdo, $uid) . ' 個分類。';
-        } elseif (!$controller->add(trim($_POST['new_name']))) {
+        if (!$controller->add(trim($_POST['new_name']))) {
             $categoryAddError = '新增失敗（可能與現有分類名稱衝突）。';
         }
     } elseif (isset($_POST['update'])) {
         $controller->update($_POST['id'], trim($_POST['name']), (int)$_POST['sort_order']);
     } elseif (isset($_POST['delete'])) {
-        $success = $controller->delete($_POST['id']);
-        if (!$success) {
-            echo "<p style='color:red;'>⚠️ 此分類已被使用，無法刪除。</p>";
+        if (!$controller->delete($_POST['id'])) {
+            echo "<p style='color:red;'>⚠️ 無法刪除此分類（可能不存在或已刪除）。</p>";
         }
     }
 }
@@ -63,7 +59,7 @@ $categories = $controller->getAll();
                     <td>
                         <input type="hidden" name="id" value="<?= $cat['id'] ?>">
                         <button type="submit" name="update">💾 儲存</button>
-                        <button type="submit" name="delete" onclick="return confirm('確定要刪除？')">🗑️ 刪除</button>
+                        <button type="submit" name="delete" onclick="return confirm('確定要刪除此分類？若分類內有頻道，將改為未分類。')">🗑️ 刪除</button>
                     </td>
                 </form>
             </tr>

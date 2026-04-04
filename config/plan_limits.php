@@ -3,11 +3,9 @@
  * 各方案額度：依 subscription_plans.slug 對應（free、go …）
  */
 define('PLAN_FREE_MAX_CHANNELS', 200);
-define('PLAN_FREE_MAX_CATEGORIES', 10);
 define('PLAN_FREE_MAX_VIDEOS_PER_LIST', 10000);
 
 define('PLAN_GO_MAX_CHANNELS', 50);
-define('PLAN_GO_MAX_CATEGORIES', 50);
 define('PLAN_GO_MAX_VIDEOS_PER_LIST', 500);
 
 /**
@@ -32,7 +30,7 @@ function plan_limits_get_active_slug(PDO $pdo, $userId)
 }
 
 /**
- * @return array|null 含 videos, channels, categories, name；null 表示不限制
+ * @return array|null 含 videos, channels, name；null 表示不限制（分類數量另見 plan_limits_max_categories）
  */
 function plan_limits_get_tier_limits($slug)
 {
@@ -41,14 +39,12 @@ function plan_limits_get_tier_limits($slug)
             return array(
                 'videos' => PLAN_FREE_MAX_VIDEOS_PER_LIST,
                 'channels' => PLAN_FREE_MAX_CHANNELS,
-                'categories' => PLAN_FREE_MAX_CATEGORIES,
                 'name' => '免費',
             );
         case 'go':
             return array(
                 'videos' => PLAN_GO_MAX_VIDEOS_PER_LIST,
                 'channels' => PLAN_GO_MAX_CHANNELS,
-                'categories' => PLAN_GO_MAX_CATEGORIES,
                 'name' => 'Go',
             );
         default:
@@ -85,13 +81,12 @@ function plan_limits_max_channels(PDO $pdo, $userId)
     return (int)$cfg['channels'];
 }
 
+/**
+ * 分類數量不限制（回傳 null 表示無上限，與頻道／影片清單額度分開）
+ */
 function plan_limits_max_categories(PDO $pdo, $userId)
 {
-    $cfg = plan_limits_get_tier_limits(plan_limits_get_active_slug($pdo, $userId));
-    if ($cfg === null) {
-        return null;
-    }
-    return (int)$cfg['categories'];
+    return null;
 }
 
 /**
@@ -111,8 +106,8 @@ function plan_limits_quota_banner_text(PDO $pdo, $userId)
     if ($cfg === null) {
         return '';
     }
-    return $cfg['name'] . '：待看／已看列表各最多顯示 ' . (int)$cfg['videos'] . ' 筆；頻道與分類各最多 '
-        . (int)$cfg['channels'] . ' 個。';
+    return $cfg['name'] . '：待看／已看列表各最多顯示 ' . (int)$cfg['videos'] . ' 筆；頻道最多 '
+        . (int)$cfg['channels'] . ' 個；分類數量不限。';
 }
 
 function plan_limits_channel_count(PDO $pdo, $userId)

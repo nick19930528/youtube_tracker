@@ -22,12 +22,25 @@ class CategoryController {
     }
 
     public function add($name) {
-        require_once __DIR__ . '/../config/plan_limits.php';
-        if (!plan_limits_can_add_category($this->pdo, $this->userId)) {
+        return $this->addReturningId($name) !== false;
+    }
+
+    /**
+     * @return int|false 新分類 id，失敗（名稱空白或重複等）回傳 false
+     */
+    public function addReturningId($name) {
+        $name = trim((string) $name);
+        if ($name === '') {
             return false;
         }
-        $stmt = $this->pdo->prepare("INSERT INTO channel_categories (user_id, name) VALUES (?, ?)");
-        return $stmt->execute([$this->userId, $name]);
+        $stmt = $this->pdo->prepare('SELECT IFNULL(MAX(sort_order), 0) FROM channel_categories WHERE user_id = ?');
+        $stmt->execute([$this->userId]);
+        $next = (int) $stmt->fetchColumn() + 1;
+        $stmt = $this->pdo->prepare('INSERT INTO channel_categories (user_id, name, sort_order) VALUES (?, ?, ?)');
+        if (!$stmt->execute([$this->userId, $name, $next])) {
+            return false;
+        }
+        return (int) $this->pdo->lastInsertId();
     }
 
     public function update($id, $name, $sortOrder) {
@@ -36,13 +49,14 @@ class CategoryController {
     }
 
     public function delete($id) {
-        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM channels WHERE category_id = ? AND user_id = ?");
-        $stmt->execute([$id, $this->userId]);
-        if ($stmt->fetchColumn() > 0) {
+        $id = (int) $id;
+        if ($id < 1) {
             return false;
         }
-
-        $stmt = $this->pdo->prepare("DELETE FROM channel_categories WHERE id = ? AND user_id = ?");
-        return $stmt->execute([$id, $this->userId]);
+        $stmt = $this->pdo->prepare('UPDATE channels SET category_id = NULL WHERE category_id = ? AND user_id = ?');
+        $stmt->execute([$id, $this->userId]);
+        $stmt = $this->pdo->prepare('DELETE FROM channel_categories WHERE id = ? AND user_id = ?');
+        $stmt->execute([$id, $this->userId]);
+        return $stmt->rowCount() > 0;
     }
 }

@@ -116,6 +116,9 @@ $selectedCategoryId = $_GET['category_id'] ?? null;
 $keyword = $_GET['keyword'] ?? null;
 $channels = $controller->list($selectedCategoryId, $keyword);
 $categories = $controller->getCategoriesWithCount();
+$stU = $pdo->prepare('SELECT COUNT(*) FROM channels WHERE user_id = ? AND category_id IS NULL');
+$stU->execute([$uid]);
+$uncategorizedListCount = (int) $stU->fetchColumn();
 ?>
 
 <!-- ✅ HTML 區塊開始 -->
@@ -132,6 +135,9 @@ $categories = $controller->getCategoriesWithCount();
             📂
             <select name="category_id" onchange="this.form.submit()">
                 <option value="">全部分類</option>
+                <option value="<?= (int) FILTER_CATEGORY_UNCATEGORIZED ?>" <?= ((int) ($selectedCategoryId ?? 0) === FILTER_CATEGORY_UNCATEGORIZED) ? 'selected' : '' ?>>
+                    未分類（<?= $uncategorizedListCount ?>）
+                </option>
                 <?php foreach ($categories as $cat): ?>
                     <option value="<?= $cat['id'] ?>" <?= ($selectedCategoryId == $cat['id']) ? 'selected' : '' ?>>
                         <?= htmlspecialchars($cat['name']) ?>（<?= $cat['channel_count'] ?? 0 ?>）
