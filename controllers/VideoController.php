@@ -87,6 +87,13 @@ class VideoController {
         return $stmt->execute([$id, $this->userId]);
     }
 
+    /** @return int 刪除筆數 */
+    public function deleteAllUnwatched(): int {
+        $stmt = $this->pdo->prepare('DELETE FROM videos WHERE user_id = ? AND is_watched = 0');
+        $stmt->execute([$this->userId]);
+        return $stmt->rowCount();
+    }
+
     public function markWatched($id) {
         $stmt = $this->pdo->prepare("UPDATE videos SET is_watched = 1, watched_at = NOW() WHERE id = ? AND user_id = ?");
         return $stmt->execute([$id, $this->userId]);

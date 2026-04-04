@@ -81,6 +81,10 @@ if ($page !== 'home') {
             require __DIR__ . '/views/account/center.php';
             break;
 
+        case 'test_lab':
+            require __DIR__ . '/views/test_lab.php';
+            break;
+
         case 'pay':
             require __DIR__ . '/views/payment/checkout_mpg.php';
             break;
@@ -576,11 +580,37 @@ body {
     padding: 30px;
 }
 
-/* KPI */
+/* KPI + 快速操作（橫列：左直向 KPI、右快速操作） */
+.dash-top-row {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 20px;
+    margin-bottom: 25px;
+}
 .cards {
     display: flex;
     gap: 20px;
-    margin-bottom: 25px;
+}
+.cards.cards--vertical {
+    flex: 0 0 auto;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 0;
+}
+.quick-actions-wrap {
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 0 !important;
+}
+@media (max-width: 720px) {
+    .dash-top-row {
+        flex-direction: column;
+    }
+    .cards.cards--vertical {
+        flex-direction: column;
+        width: 100%;
+    }
 }
 .card {
     flex: 1;
@@ -588,6 +618,61 @@ body {
     padding: 20px;
     border-radius: 12px;
     box-shadow: 0 3px 8px rgba(0,0,0,0.05);
+}
+.cards--vertical .card {
+    flex: 0 0 auto;
+    min-width: 7rem;
+    padding: 10px 14px;
+}
+.cards--vertical .card h2 {
+    margin: 0;
+    font-size: 1.35rem;
+    line-height: 1.2;
+}
+.cards--vertical .card p {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: #888;
+}
+.card--kpi-unwatched .kpi-clear-unwatched-btn {
+    margin-top: 8px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 5px 6px;
+    font-size: 11px;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    background: #fef2f2;
+    color: #b91c1c;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1.2;
+}
+.card--kpi-unwatched .kpi-clear-unwatched-btn:hover:not(:disabled) {
+    background: #fee2e2;
+}
+.card--kpi-unwatched .kpi-clear-unwatched-btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+.card.card--fetch {
+    padding: 0;
+    overflow: hidden;
+}
+.card--fetch .kpi-fetch-btn {
+    display: block;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: bold;
+    color: #fff;
+    background: #0077cc;
+    text-align: center;
+    text-decoration: none;
+    font-family: inherit;
+}
+.card--fetch .kpi-fetch-btn:hover {
+    background: #005fa3;
+    color: #fff;
 }
 .card h2 { margin: 0; }
 .card p { color: #888; }
@@ -998,13 +1083,6 @@ body {
 }
 .btn:hover { background: #005fa3; }
 
-.quick-actions-bar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    align-items: center;
-    margin-bottom: 8px;
-}
 .quick-notice {
     padding: 10px 12px;
     border-radius: 8px;
@@ -1268,6 +1346,7 @@ body {
         <?= htmlspecialchars($currentAuthUser['name'] !== '' ? $currentAuthUser['name'] : $currentAuthUser['email']) ?>
         <span style="color:#999;">(<?= htmlspecialchars($currentAuthUser['email']) ?>)</span>
         <a href="index.php?page=account">會員中心</a>
+        <a href="index.php?page=test_lab">測試</a>
         <a href="index.php?page=logout">登出</a>
     </div>
 </header>
@@ -1276,16 +1355,26 @@ body {
 <p style="font-size:13px;color:#64748b;margin:0 0 16px;"><?= htmlspecialchars($quotaBannerText) ?></p>
 <?php endif; ?>
 
-<!-- KPI -->
-<div class="cards">
-    <div class="card"><h2><?= $unwatched ?></h2><p>📋 未看</p></div>
+<div class="dash-top-row">
+<!-- KPI（左側直向） -->
+<div class="cards cards--vertical" aria-label="統計摘要">
+    <div class="card card--kpi-unwatched">
+        <h2><?= (int)$unwatched ?></h2>
+        <p>📋 未看</p>
+        <?php if ((int)$unwatched > 0): ?>
+            <button type="button" class="kpi-clear-unwatched-btn" id="btnKpiClearUnwatched" title="刪除帳號內全部待看（未看）影片">全部刪除</button>
+        <?php endif; ?>
+    </div>
     <div class="card"><h2><?= $watched ?></h2><p>✅ 已看</p></div>
     <div class="card"><h2><?= $channels ?></h2><p>📺 頻道</p></div>
     <div class="card"><h2><?= $todayTime ?></h2><p>⏱ 今日觀看</p></div>
+    <div class="card card--fetch">
+        <a class="kpi-fetch-btn" href="scripts/fetch_new_videos.php" target="_blank" rel="noopener noreferrer">📡 抓新影片</a>
+    </div>
 </div>
 
 <!-- 快速操作 -->
-<div class="section" style="margin-bottom:20px;">
+<div class="section quick-actions-wrap">
     <h3>⚡ 快速操作</h3>
 
     <?php if ($quickNotice): ?>
@@ -1307,14 +1396,6 @@ body {
             <?= htmlspecialchars($noticeTexts[$quickNotice] ?? '') ?>
         </p>
     <?php endif; ?>
-
-    <div class="quick-actions-bar">
-        <a class="btn" href="index.php?page=videos&watched=0">📋 待看清單</a>
-        <a class="btn" href="index.php?page=videos&watched=1">✅ 已看清單</a>
-        <a class="btn" href="index.php?page=channels">📺 頻道管理</a>
-        <a class="btn" href="index.php?page=channel_categories">📂 分類管理</a>
-        <a class="btn" href="scripts/fetch_new_videos.php" target="_blank" rel="noopener noreferrer">📡 抓新影片</a>
-    </div>
 
     <div class="quick-forms">
         <div class="quick-form-block">
@@ -1356,6 +1437,7 @@ body {
             <p class="quick-form-hint">會透過 API 取得資訊並加入「已看」；與舊版<a href="index.php?page=add">新增影片頁</a>相同邏輯。</p>
         </div>
     </div>
+</div>
 </div>
 
 <div class="grid">
@@ -2112,6 +2194,36 @@ body {
     });
 
     wrap.querySelectorAll('.category-editor-input').forEach(bindEditorInput);
+})();
+</script>
+
+<script>
+(function () {
+    var btn = document.getElementById('btnKpiClearUnwatched');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+        if (!confirm('確定要刪除全部「待看／未看」影片？此操作無法復原。')) return;
+        btn.disabled = true;
+        fetch('scripts/video_card_api.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'delete_all_unwatched' }),
+            credentials: 'same-origin'
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data || !data.ok) {
+                    alert('刪除失敗');
+                    btn.disabled = false;
+                    return;
+                }
+                window.location.reload();
+            })
+            .catch(function () {
+                alert('刪除失敗');
+                btn.disabled = false;
+            });
+    });
 })();
 </script>
 

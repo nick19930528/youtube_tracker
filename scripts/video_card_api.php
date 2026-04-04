@@ -1,6 +1,6 @@
 <?php
 /**
- * 首頁影片卡片：從清單刪除
+ * 首頁影片：單筆刪除、一次刪除全部未看
  */
 require_once __DIR__ . '/../config/bootstrap.php';
 auth_require_login();
@@ -21,20 +21,27 @@ if (!is_array($input)) {
 }
 
 $action = $input['action'] ?? '';
-$id = (int)($input['video_id'] ?? 0);
-if ($id < 1) {
-    echo json_encode(['ok' => false, 'error' => 'id']);
-    exit;
-}
 
 $pdo = (new Database())->getConnection();
 $uid = auth_user_id();
 $controller = new VideoController($pdo, $uid);
 
-if ($action === 'delete_video') {
-    $ok = $controller->delete($id);
-    echo json_encode(['ok' => (bool)$ok]);
+if ($action === 'delete_all_unwatched') {
+    $n = $controller->deleteAllUnwatched();
+    echo json_encode(['ok' => true, 'deleted' => $n], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
-echo json_encode(['ok' => false, 'error' => 'action']);
+if ($action !== 'delete_video') {
+    echo json_encode(['ok' => false, 'error' => 'action'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+$id = (int)($input['video_id'] ?? 0);
+if ($id < 1) {
+    echo json_encode(['ok' => false, 'error' => 'id'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+$ok = $controller->delete($id);
+echo json_encode(['ok' => (bool)$ok], JSON_UNESCAPED_UNICODE);
