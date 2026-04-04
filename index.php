@@ -492,7 +492,7 @@ $dashSubscribedTotal = (int) $stmt->fetchColumn();
 $limCh = $dashAutoLoadPref === 0 ? 999999 : (int) $dashFeedPage;
 $subscribedSql = "
     SELECT c.id, c.name, c.url, c.thumbnail_url, c.subscriber_count, c.video_count, c.published_at,
-           c.is_favorite, cc.name AS category_name
+           c.is_favorite, c.category_id, cc.name AS category_name
     FROM channels c
     LEFT JOIN channel_categories cc ON c.category_id = cc.id AND cc.user_id = c.user_id
     WHERE c.user_id = ?
@@ -879,6 +879,33 @@ body {
     color: #888;
     line-height: 1.3;
 }
+.channel-card-category-select--overlay {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    font-size: 11px;
+    line-height: 1.2;
+    padding: 5px 4px;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 6px;
+    background: rgba(15, 23, 42, 0.65);
+    color: #f8fafc;
+    font-family: inherit;
+    cursor: pointer;
+    pointer-events: auto;
+}
+.channel-card-category-select--overlay:focus {
+    outline: 2px solid rgba(56, 189, 248, 0.6);
+    outline-offset: 1px;
+}
+.channel-card-category-select--overlay:disabled {
+    opacity: 0.55;
+    cursor: wait;
+}
+.channel-card-category-select--overlay option {
+    color: #0f172a;
+    background: #fff;
+}
 
 .channel-card-media {
     position: relative;
@@ -914,13 +941,17 @@ body {
     min-height: 0;
 }
 .channel-card-overlay-actions {
-    align-self: flex-end;
+    align-self: stretch;
     margin-top: auto;
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: 6px;
-    justify-content: flex-end;
+    justify-content: flex-start;
     pointer-events: auto;
+}
+.channel-card-overlay-actions .channel-card-btn {
+    flex: 0 0 auto;
 }
 .channel-card-btn {
     border: none;
@@ -1480,7 +1511,7 @@ body {
                  data-dash-category="<?= (int)$filterCategoryId ?>">
                 <div class="subscribed-grid">
                     <?php foreach ($subscribedChannels as $ch): ?>
-                        <?php render_dashboard_channel_card($ch); ?>
+                        <?php render_dashboard_channel_card($ch, $categories); ?>
                     <?php endforeach; ?>
                 </div>
             </div>
@@ -1709,6 +1740,48 @@ body {
             body: JSON.stringify(body)
         }).then(function (r) { return r.json(); });
     }
+
+    grid.addEventListener('change', function (e) {
+        var sel = e.target.closest('.channel-card-category-select');
+        if (!sel || !grid.contains(sel)) return;
+        var chId = parseInt(sel.getAttribute('data-channel-id'), 10);
+        if (chId < 1) return;
+        var last = sel.getAttribute('data-last-saved') || '';
+        var val = sel.value;
+        var payload = { action: 'update_category', channel_id: chId };
+        payload.category_id = val === '' ? null : parseInt(val, 10);
+        sel.disabled = true;
+        postJson(payload).then(function (res) {
+            sel.disabled = false;
+            if (!res || !res.ok) {
+                sel.value = last;
+                alert('分類變更失敗');
+                return;
+            }
+            sel.setAttribute('data-last-saved', val);
+            var inner = document.querySelector('#panel-subscribed .dash-feed-inner--subscribed');
+            var fCat = inner ? (parseInt(inner.getAttribute('data-dash-category'), 10) || 0) : 0;
+            if (fCat === 0) return;
+            var newVal = val === '' ? null : parseInt(val, 10);
+            var drop = false;
+            if (fCat === -1) {
+                drop = newVal !== null;
+            } else if (fCat > 0) {
+                drop = newVal !== fCat;
+            }
+            if (drop) {
+                var card = sel.closest('.channel-card');
+                if (card) card.remove();
+                if (!grid.querySelector('.channel-card')) {
+                    window.location.reload();
+                }
+            }
+        }).catch(function () {
+            sel.disabled = false;
+            sel.value = last;
+            alert('分類變更失敗');
+        });
+    });
 
     grid.addEventListener('click', function (e) {
         var fav = e.target.closest('.channel-card-btn--fav');

@@ -156,7 +156,7 @@ function render_dashboard_video_rows_flat(array $rows, $mode) {
     return ob_get_clean();
 }
 
-function render_dashboard_channel_card(array $ch) {
+function render_dashboard_channel_card(array $ch, array $categoryOptions = []) {
     $subN = (int)($ch['subscriber_count'] ?? 0);
     $vidN = (int)($ch['video_count'] ?? 0);
     if ($subN >= 100000000) {
@@ -178,8 +178,13 @@ function render_dashboard_channel_card(array $ch) {
         }
     }
     $isFav = !empty($ch['is_favorite']);
+    $curCatId = null;
+    if (array_key_exists('category_id', $ch) && $ch['category_id'] !== null && $ch['category_id'] !== '') {
+        $curCatId = (int) $ch['category_id'];
+    }
+    $chId = (int) $ch['id'];
     ?>
-    <article class="channel-card" data-channel-id="<?= (int)$ch['id'] ?>">
+    <article class="channel-card" data-channel-id="<?= $chId ?>">
         <div class="channel-card-media">
             <?php if (!empty($ch['thumbnail_url'])): ?>
                 <img class="channel-card-thumb" src="<?= htmlspecialchars($ch['thumbnail_url']) ?>" alt="">
@@ -209,6 +214,22 @@ function render_dashboard_channel_card(array $ch) {
                     <button type="button" class="channel-card-btn channel-card-btn--del"
                             data-channel-id="<?= (int)$ch['id'] ?>"
                             title="從訂閱清單刪除">🗑 刪除</button>
+                    <select id="ch-cat-<?= $chId ?>"
+                            class="channel-card-category-select channel-card-category-select--overlay"
+                            autocomplete="off"
+                            data-channel-id="<?= $chId ?>"
+                            data-last-saved="<?= $curCatId !== null ? (int) $curCatId : '' ?>"
+                            title="分類"
+                            aria-label="變更頻道分類">
+                        <option value=""<?= $curCatId === null ? ' selected' : '' ?>>未分類</option>
+                        <?php foreach ($categoryOptions as $opt): ?>
+                            <?php $oid = (int) ($opt['id'] ?? 0); ?>
+                            <?php if ($oid < 1) {
+                                continue;
+                            } ?>
+                            <option value="<?= $oid ?>"<?= $curCatId === $oid ? ' selected' : '' ?>><?= htmlspecialchars($opt['name'] ?? '') ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
             </div>
         </div>
@@ -216,18 +237,15 @@ function render_dashboard_channel_card(array $ch) {
             <a class="channel-card-name" href="<?= htmlspecialchars($ch['url']) ?>" target="_blank" rel="noopener noreferrer">
                 <?= htmlspecialchars($ch['name']) ?>
             </a>
-            <?php if (!empty($ch['category_name'])): ?>
-                <span class="channel-card-cat"><?= htmlspecialchars($ch['category_name']) ?></span>
-            <?php endif; ?>
         </div>
     </article>
     <?php
 }
 
-function render_dashboard_channel_cards_html(array $channels) {
+function render_dashboard_channel_cards_html(array $channels, array $categoryOptions = []) {
     ob_start();
     foreach ($channels as $ch) {
-        render_dashboard_channel_card($ch);
+        render_dashboard_channel_card($ch, $categoryOptions);
     }
     return ob_get_clean();
 }

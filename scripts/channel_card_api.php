@@ -49,4 +49,39 @@ if ($action === 'delete_channel') {
     exit;
 }
 
+if ($action === 'update_category') {
+    $rawCat = $input['category_id'] ?? null;
+    if ($rawCat === '' || $rawCat === null) {
+        $newCatId = null;
+    } else {
+        $newCatId = (int) $rawCat;
+        if ($newCatId < 1) {
+            echo json_encode(['ok' => false, 'error' => 'category'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        $stmt = $pdo->prepare('SELECT id FROM channel_categories WHERE id = ? AND user_id = ?');
+        $stmt->execute([$newCatId, $uid]);
+        if ($stmt->fetchColumn() === false) {
+            echo json_encode(['ok' => false, 'error' => 'category'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+    }
+    if (!$controller->updateCategory($id, $newCatId)) {
+        echo json_encode(['ok' => false], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $catName = null;
+    if ($newCatId !== null) {
+        $stmt = $pdo->prepare('SELECT name FROM channel_categories WHERE id = ? AND user_id = ?');
+        $stmt->execute([$newCatId, $uid]);
+        $catName = $stmt->fetchColumn();
+    }
+    echo json_encode([
+        'ok' => true,
+        'category_id' => $newCatId,
+        'category_name' => ($catName !== false && $catName !== null && $catName !== '') ? $catName : null,
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 echo json_encode(['ok' => false, 'error' => 'action']);

@@ -29,6 +29,10 @@ if ($offset < 0) {
 $pdo = (new Database())->getConnection();
 $uid = auth_user_id();
 
+$stmt = $pdo->prepare('SELECT id, name FROM channel_categories WHERE user_id = ? ORDER BY sort_order ASC, name ASC');
+$stmt->execute([$uid]);
+$dashCategoryOptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 try {
     $stmt = $pdo->prepare('SELECT COALESCE(dash_auto_load, 1) FROM users WHERE id = ? LIMIT 1');
     $stmt->execute([$uid]);
@@ -83,7 +87,7 @@ if ($tab === 'subscribed') {
     $take = min($pageSize, $total - $offset);
     $sql = "
         SELECT c.id, c.name, c.url, c.thumbnail_url, c.subscriber_count, c.video_count, c.published_at,
-               c.is_favorite, cc.name AS category_name
+               c.is_favorite, c.category_id, cc.name AS category_name
         FROM channels c
         LEFT JOIN channel_categories cc ON c.category_id = cc.id AND cc.user_id = c.user_id
         WHERE c.user_id = ?
@@ -102,7 +106,7 @@ if ($tab === 'subscribed') {
         $stmt->execute([$uid]);
     }
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    $html = render_dashboard_channel_cards_html($rows);
+    $html = render_dashboard_channel_cards_html($rows, $dashCategoryOptions);
     $nextOffset = $offset + count($rows);
     $hasMore = ($nextOffset < $total);
     echo json_encode(['ok' => true, 'html' => $html, 'has_more' => $hasMore, 'next_offset' => $nextOffset], JSON_UNESCAPED_UNICODE);
