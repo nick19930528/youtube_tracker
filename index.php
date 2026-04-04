@@ -291,6 +291,112 @@ function group_videos_by_channel_for_dashboard(array $rows) {
     return $groups;
 }
 
+/** 首頁縮圖 overlay：發布至今（相對時間） */
+function dash_video_published_ago($publishedAt) {
+    if ($publishedAt === null || $publishedAt === '') {
+        return '—';
+    }
+    $ts = strtotime($publishedAt);
+    if ($ts === false) {
+        return '—';
+    }
+    $sec = time() - $ts;
+    if ($sec < 0) {
+        return '—';
+    }
+    if ($sec < 60) {
+        return '剛剛';
+    }
+    if ($sec < 3600) {
+        return (string) (int) floor($sec / 60) . ' 分鐘前';
+    }
+    if ($sec < 86400) {
+        return (string) (int) floor($sec / 3600) . ' 小時前';
+    }
+    if ($sec < 604800) {
+        return (string) (int) floor($sec / 86400) . ' 天前';
+    }
+    if ($sec < 2592000) {
+        return (string) (int) floor($sec / 604800) . ' 週前';
+    }
+    if ($sec < 31536000) {
+        return (string) (int) floor($sec / 2592000) . ' 個月前';
+    }
+    return (string) (int) floor($sec / 31536000) . ' 年前';
+}
+
+function dash_video_duration_label($duration) {
+    $s = (int) $duration;
+    if ($s < 1) {
+        return '—';
+    }
+    return $s >= 3600 ? gmdate('H:i:s', $s) : gmdate('i:s', $s);
+}
+
+/**
+ * 待看／已看縮圖：與已訂閱頻道卡相同 hover 顯示資訊與刪除
+ *
+ * @param 'unwatched'|'watched' $mode
+ */
+function render_dashboard_video_thumb_block(array $v, $mode) {
+    if (!in_array($mode, ['unwatched', 'watched'], true)) {
+        $mode = 'unwatched';
+    }
+    $vid = (int) ($v['id'] ?? 0);
+    if ($vid < 1) {
+        return;
+    }
+    $thumb = trim((string) ($v['thumbnail_url'] ?? ''));
+    if ($mode === 'unwatched') {
+        $targetHref = 'index.php?page=open_video&amp;id=' . $vid;
+    } else {
+        $yu = (string) ($v['youtube_url'] ?? '');
+        $targetHref = $yu !== '' ? htmlspecialchars($yu, ENT_QUOTES, 'UTF-8') : '#';
+    }
+    $pubAgo = htmlspecialchars(dash_video_published_ago($v['published_at'] ?? null), ENT_QUOTES, 'UTF-8');
+    $views = htmlspecialchars(number_format((int) ($v['view_count'] ?? 0)), ENT_QUOTES, 'UTF-8');
+    $comments = htmlspecialchars(number_format((int) ($v['comment_count'] ?? 0)), ENT_QUOTES, 'UTF-8');
+    $dur = htmlspecialchars(dash_video_duration_label($v['duration'] ?? 0), ENT_QUOTES, 'UTF-8');
+    ?>
+    <div class="video-media">
+        <?php if ($thumb !== ''): ?>
+            <a href="<?= $targetHref ?>" class="video-thumb-link" target="_blank" rel="noopener noreferrer">
+                <img src="<?= htmlspecialchars($thumb, ENT_QUOTES, 'UTF-8') ?>" alt="">
+            </a>
+        <?php else: ?>
+            <a href="<?= $targetHref ?>" class="video-thumb-link video-thumb-link--empty" target="_blank" rel="noopener noreferrer">
+                <span class="video-thumb-placeholder" role="img" aria-label="無縮圖"></span>
+            </a>
+        <?php endif; ?>
+        <div class="video-thumb-overlay">
+            <div class="video-thumb-overlay-main">
+                <div class="video-thumb-stat">
+                    <span class="video-thumb-stat-label">發布</span>
+                    <span class="video-thumb-stat-value"><?= $pubAgo ?></span>
+                </div>
+                <div class="video-thumb-stat">
+                    <span class="video-thumb-stat-label">觀看</span>
+                    <span class="video-thumb-stat-value"><?= $views ?></span>
+                </div>
+                <div class="video-thumb-stat">
+                    <span class="video-thumb-stat-label">留言</span>
+                    <span class="video-thumb-stat-value"><?= $comments ?></span>
+                </div>
+                <div class="video-thumb-stat">
+                    <span class="video-thumb-stat-label">長度</span>
+                    <span class="video-thumb-stat-value"><?= $dur ?></span>
+                </div>
+            </div>
+            <div class="video-thumb-overlay-actions">
+                <button type="button" class="video-thumb-btn video-thumb-btn--del"
+                        data-video-id="<?= $vid ?>"
+                        title="從清單刪除">🗑 刪除</button>
+            </div>
+        </div>
+    </div>
+    <?php
+}
+
 /* =========================
    📊 KPI
 ========================= */
@@ -501,14 +607,106 @@ body {
     gap: 10px;
     margin-bottom: 10px;
 }
-.video img {
-    width: 120px;
-    border-radius: 6px;
-}
-.video a {
+.video .video-text a {
     text-decoration: none;
     color: #333;
     font-weight: bold;
+}
+.video-media {
+    position: relative;
+    width: 120px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    overflow: hidden;
+    align-self: flex-start;
+}
+.video-thumb-link {
+    display: block;
+    line-height: 0;
+}
+.video-media img {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    display: block;
+    vertical-align: top;
+}
+.video-thumb-placeholder {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: linear-gradient(145deg, #e8ecf0, #dde3ea);
+}
+.video-thumb-link--empty {
+    text-decoration: none;
+}
+.video-thumb-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.82);
+    color: #f1f5f9;
+    font-size: 10px;
+    line-height: 1.35;
+    padding: 6px 6px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 4px;
+    text-align: left;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+}
+.video-media:hover .video-thumb-overlay {
+    opacity: 1;
+}
+.video-thumb-overlay-main {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+    justify-content: center;
+    min-height: 0;
+}
+.video-thumb-overlay-actions {
+    align-self: flex-end;
+    margin-top: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: flex-end;
+    pointer-events: auto;
+}
+.video-thumb-btn {
+    border: none;
+    cursor: pointer;
+    font-size: 11px;
+    line-height: 1;
+    padding: 5px 6px;
+    border-radius: 5px;
+    font-family: inherit;
+    background: rgba(255, 255, 255, 0.15);
+    color: #f8fafc;
+}
+.video-thumb-btn:hover {
+    background: rgba(255, 255, 255, 0.28);
+}
+.video-thumb-btn--del:hover {
+    background: rgba(239, 68, 68, 0.45);
+}
+.video-thumb-stat {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+}
+.video-thumb-stat-label {
+    flex: 0 0 auto;
+    color: #94a3b8;
+}
+.video-thumb-stat-value {
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
 }
 
 .video-channel-group {
@@ -538,6 +736,31 @@ body {
     margin-bottom: 16px;
 }
 .section-head h3 { margin: 0; }
+
+.section-head-video-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+.dash-video-search {
+    min-width: 180px;
+    max-width: 280px;
+    flex: 1 1 180px;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    border: 1px solid #cce0f0;
+    border-radius: 8px;
+    background: #fff;
+    box-sizing: border-box;
+}
+.dash-video-search::placeholder { color: #999; }
+.dash-video-search:focus {
+    outline: none;
+    border-color: #0077cc;
+    box-shadow: 0 0 0 2px rgba(0,119,204,0.15);
+}
 
 .video-tab-toggle {
     display: inline-flex;
@@ -1016,10 +1239,13 @@ body {
 <div class="section">
     <div class="section-head">
         <h3>🎬 最新影片</h3>
-        <div class="video-tab-toggle" role="tablist" aria-label="待看、已看與已訂閱頻道">
-            <button type="button" class="video-tab<?= $dashTabKey === 'unwatched' ? ' active' : '' ?>" role="tab" aria-selected="<?= $dashTabKey === 'unwatched' ? 'true' : 'false' ?>" data-panel="unwatched" id="tab-unwatched">📋 待看</button>
-            <button type="button" class="video-tab<?= $dashTabKey === 'watched' ? ' active' : '' ?>" role="tab" aria-selected="<?= $dashTabKey === 'watched' ? 'true' : 'false' ?>" data-panel="watched" id="tab-watched">✅ 已看</button>
-            <button type="button" class="video-tab<?= $dashTabKey === 'subscribed' ? ' active' : '' ?>" role="tab" aria-selected="<?= $dashTabKey === 'subscribed' ? 'true' : 'false' ?>" data-panel="subscribed" id="tab-subscribed">📺 已訂閱</button>
+        <div class="section-head-video-tools">
+            <div class="video-tab-toggle" role="tablist" aria-label="待看、已看與已訂閱頻道">
+                <button type="button" class="video-tab<?= $dashTabKey === 'unwatched' ? ' active' : '' ?>" role="tab" aria-selected="<?= $dashTabKey === 'unwatched' ? 'true' : 'false' ?>" data-panel="unwatched" id="tab-unwatched">📋 待看</button>
+                <button type="button" class="video-tab<?= $dashTabKey === 'watched' ? ' active' : '' ?>" role="tab" aria-selected="<?= $dashTabKey === 'watched' ? 'true' : 'false' ?>" data-panel="watched" id="tab-watched">✅ 已看</button>
+                <button type="button" class="video-tab<?= $dashTabKey === 'subscribed' ? ' active' : '' ?>" role="tab" aria-selected="<?= $dashTabKey === 'subscribed' ? 'true' : 'false' ?>" data-panel="subscribed" id="tab-subscribed">📺 已訂閱</button>
+            </div>
+            <input type="search" id="dash-video-search" class="dash-video-search" placeholder="搜尋標題或頻道名稱…" autocomplete="off" aria-label="搜尋目前分頁：影片標題或頻道名稱">
         </div>
     </div>
 
@@ -1041,12 +1267,8 @@ body {
                         <h4 class="video-channel-title">📺 <?= htmlspecialchars($chName !== '' ? $chName : '（未知頻道）') ?></h4>
                         <?php foreach ($vidList as $v): ?>
                             <div class="video">
-                                <?php if ($v['thumbnail_url']): ?>
-                                    <a href="index.php?page=open_video&amp;id=<?= (int)$v['id'] ?>" target="_blank" rel="noopener noreferrer">
-                                        <img src="<?= htmlspecialchars($v['thumbnail_url']) ?>" alt="">
-                                    </a>
-                                <?php endif; ?>
-                                <div>
+                                <?php render_dashboard_video_thumb_block($v, 'unwatched'); ?>
+                                <div class="video-text">
                                     <a href="index.php?page=open_video&amp;id=<?= (int)$v['id'] ?>" target="_blank" rel="noopener noreferrer">
                                         <?= htmlspecialchars($v['title']) ?>
                                     </a>
@@ -1061,13 +1283,8 @@ body {
         <?php else: ?>
             <?php foreach ($latestVideos as $v): ?>
                 <div class="video">
-                    <?php if ($v['thumbnail_url']): ?>
-                        <a href="index.php?page=open_video&amp;id=<?= (int)$v['id'] ?>" target="_blank" rel="noopener noreferrer">
-                            <img src="<?= htmlspecialchars($v['thumbnail_url']) ?>" alt="">
-                        </a>
-                    <?php endif; ?>
-
-                    <div>
+                    <?php render_dashboard_video_thumb_block($v, 'unwatched'); ?>
+                    <div class="video-text">
                         <a href="index.php?page=open_video&amp;id=<?= (int)$v['id'] ?>" target="_blank" rel="noopener noreferrer">
                             <?= htmlspecialchars($v['title']) ?>
                         </a>
@@ -1089,10 +1306,8 @@ body {
                         <h4 class="video-channel-title">📺 <?= htmlspecialchars($chName !== '' ? $chName : '（未知頻道）') ?></h4>
                         <?php foreach ($vidList as $v): ?>
                             <div class="video">
-                                <?php if ($v['thumbnail_url']): ?>
-                                    <img src="<?= htmlspecialchars($v['thumbnail_url']) ?>" alt="">
-                                <?php endif; ?>
-                                <div>
+                                <?php render_dashboard_video_thumb_block($v, 'watched'); ?>
+                                <div class="video-text">
                                     <a href="<?= htmlspecialchars($v['youtube_url']) ?>" target="_blank" rel="noopener noreferrer">
                                         <?= htmlspecialchars($v['title']) ?>
                                     </a>
@@ -1107,11 +1322,8 @@ body {
         <?php else: ?>
             <?php foreach ($latestWatchedVideos as $v): ?>
                 <div class="video">
-                    <?php if ($v['thumbnail_url']): ?>
-                        <img src="<?= htmlspecialchars($v['thumbnail_url']) ?>" alt="">
-                    <?php endif; ?>
-
-                    <div>
+                    <?php render_dashboard_video_thumb_block($v, 'watched'); ?>
+                    <div class="video-text">
                         <a href="<?= htmlspecialchars($v['youtube_url']) ?>" target="_blank" rel="noopener noreferrer">
                             <?= htmlspecialchars($v['title']) ?>
                         </a>
@@ -1208,7 +1420,57 @@ body {
 (function () {
     var tabs = document.querySelectorAll('.video-tab');
     var panels = document.querySelectorAll('.video-panel');
+    var searchInput = document.getElementById('dash-video-search');
     if (!tabs.length || !panels.length) return;
+
+    function norm(s) {
+        return (s || '').trim().toLowerCase();
+    }
+
+    function txt(el) {
+        return el ? (el.textContent || '').trim() : '';
+    }
+
+    function filterVideoPanel(panelId) {
+        var panel = document.getElementById(panelId);
+        if (!panel || panel.hidden) return;
+        var q = searchInput ? norm(searchInput.value) : '';
+        if (panelId === 'panel-subscribed') {
+            panel.querySelectorAll('.channel-card').forEach(function (card) {
+                var nameEl = card.querySelector('.channel-card-name');
+                var blob = norm(txt(nameEl));
+                var show = !q || blob.indexOf(q) !== -1;
+                card.style.display = show ? '' : 'none';
+            });
+            return;
+        }
+        var groups = panel.querySelectorAll('.video-channel-group');
+        if (groups.length) {
+            groups.forEach(function (g) {
+                var ch = txt(g.querySelector('.video-channel-title'));
+                var hitCh = q && norm(ch).indexOf(q) !== -1;
+                var anyVid = false;
+                g.querySelectorAll('.video').forEach(function (v) {
+                    var showV = !q || hitCh || norm(txt(v)).indexOf(q) !== -1;
+                    v.style.display = showV ? '' : 'none';
+                    if (showV) anyVid = true;
+                });
+                var showG = !q || hitCh || anyVid;
+                g.style.display = showG ? '' : 'none';
+            });
+        } else {
+            panel.querySelectorAll(':scope > .video').forEach(function (v) {
+                var show = !q || norm(txt(v)).indexOf(q) !== -1;
+                v.style.display = show ? '' : 'none';
+            });
+        }
+    }
+
+    function applyDashVideoSearch() {
+        panels.forEach(function (p) {
+            filterVideoPanel(p.id);
+        });
+    }
 
     function syncCategoryLinksDashTab(key) {
         document.querySelectorAll('a.category--nav[href*="category_id="]').forEach(function (a) {
@@ -1236,6 +1498,7 @@ body {
             history.replaceState(null, '', window.location.pathname + '?' + qs);
         }
         syncCategoryLinksDashTab(key);
+        applyDashVideoSearch();
     }
 
     tabs.forEach(function (btn) {
@@ -1244,10 +1507,15 @@ body {
         });
     });
 
+    if (searchInput) {
+        searchInput.addEventListener('input', applyDashVideoSearch);
+    }
+
     var active = document.querySelector('.video-tab.active');
     if (active) {
         syncCategoryLinksDashTab(active.getAttribute('data-panel'));
     }
+    applyDashVideoSearch();
 })();
 </script>
 
@@ -1300,6 +1568,46 @@ body {
                 alert('刪除失敗');
             });
         }
+    });
+})();
+</script>
+
+<script>
+(function () {
+    var api = 'scripts/video_card_api.php';
+    function postJson(body) {
+        return fetch(api, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        }).then(function (r) { return r.json(); });
+    }
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.video-thumb-btn--del');
+        if (!btn) return;
+        var panel = btn.closest('.video-panel');
+        if (!panel || (panel.id !== 'panel-unwatched' && panel.id !== 'panel-watched')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (!confirm('確定要從清單刪除此影片？')) return;
+        var id = parseInt(btn.getAttribute('data-video-id'), 10);
+        postJson({ action: 'delete_video', video_id: id }).then(function (res) {
+            if (!res || !res.ok) {
+                alert('刪除失敗');
+                return;
+            }
+            var row = btn.closest('.video');
+            var group = row ? row.closest('.video-channel-group') : null;
+            if (row) row.remove();
+            if (group && !group.querySelector('.video')) {
+                group.remove();
+            }
+            if (panel && !panel.querySelector('.video')) {
+                window.location.reload();
+            }
+        }).catch(function () {
+            alert('刪除失敗');
+        });
     });
 })();
 </script>
