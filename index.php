@@ -826,6 +826,34 @@ body {
 }
 .section-head h3 { margin: 0; }
 
+.section-head--category {
+    margin-bottom: 12px;
+}
+.category-head-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    box-sizing: border-box;
+    gap: 10px;
+    padding: 10px 14px;
+    font-size: 16px;
+    font-weight: bold;
+    font-family: inherit;
+    line-height: 1.3;
+    text-align: left;
+}
+.category-head-btn__label {
+    flex: 1;
+    min-width: 0;
+}
+.category-head-btn__edit {
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: normal;
+    opacity: 0.9;
+}
+
 .section-head-video-tools {
     display: flex;
     flex-wrap: wrap;
@@ -1469,13 +1497,13 @@ body {
 
     <!-- 分類 -->
     <div class="section">
-        <div class="section-head" style="margin-top:0;">
-            <h3>📂 分類</h3>
-            <button type="button" class="btn btn-outline" id="btnCategoryTagEdit" aria-pressed="false" title="切換後可拖曳排序、點名稱修改">
-                ✏️ 編輯分類標籤
+        <div class="section-head section-head--category" style="margin-top:0;">
+            <button type="button" class="btn btn-outline category-head-btn" id="btnCategoryTagEdit" aria-pressed="false" title="分類：點此切換編輯（拖曳排序、改名、新增或刪除標籤）">
+                <span class="category-head-btn__label">📂 分類</span>
+                <span class="category-head-btn__edit">✏️ 編輯</span>
             </button>
         </div>
-        <p class="video-empty" style="margin:0 0 10px;font-size:13px;"><strong>未分類</strong>為固定篩選（非資料庫標籤），僅顯示尚未指定分類的頻道。點 <strong>編輯分類標籤</strong> 後，可拖曳排序、改名、<strong>新增</strong>或<strong>刪除</strong>自訂分類；刪除分類時，該分類內的頻道將改為<strong>未分類</strong>。</p>
+        <p class="video-empty" style="margin:0 0 10px;font-size:13px;"><strong>未分類</strong>為固定篩選（非資料庫標籤），僅顯示尚未指定分類的頻道。點上方 <strong>📂 分類</strong> 列的 <strong>✏️ 編輯</strong> 可切換編輯模式，拖曳排序、改名、<strong>新增</strong>或<strong>刪除</strong>自訂分類；刪除分類時，該分類內的頻道將改為<strong>未分類</strong>。</p>
         <div class="category-tags" id="categoryTags">
             <div class="category-item category-item--system" draggable="false">
                 <a class="category category--nav<?= $filterCategoryId === FILTER_CATEGORY_UNCATEGORIZED ? ' category--active' : '' ?>" href="index.php?<?= http_build_query(['category_id' => FILTER_CATEGORY_UNCATEGORIZED, 'dash_tab' => $dashTabKey]) ?>">
