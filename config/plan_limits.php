@@ -1,6 +1,6 @@
 <?php
 /**
- * 各方案額度：依 subscription_plans.slug 對應（free、go …）
+ * 各方案額度：優先讀取 subscription_plans.quota_*；無欄位或皆為 0 時回退常數（相容舊庫）
  */
 define('PLAN_FREE_MAX_CHANNELS', 200);
 define('PLAN_FREE_MAX_VIDEOS_PER_LIST', 10000);
@@ -26,13 +26,14 @@ function plan_limits_get_active_slug(PDO $pdo, $userId)
     if ($slug === false || $slug === '') {
         return 'free';
     }
-    return (string)$slug;
+
+    return (string) $slug;
 }
 
 /**
- * @return array|null 含 videos, channels, name；null 表示不限制（分類數量另見 plan_limits_max_categories）
+ * @return array|null 含 videos（單邊清單筆數）, channels（頻道數）, name；null 表示未定義方案
  */
-function plan_limits_get_tier_limits($slug)
+function plan_limits_get_tier_limits_legacy($slug)
 {
     switch ($slug) {
         case 'free':
@@ -53,6 +54,54 @@ function plan_limits_get_tier_limits($slug)
 }
 
 /**
+ * @return array|null 含 videos, channels, name
+ */
+function plan_limits_get_tier_limits(PDO $pdo, $slug)
+{
+    static $cache = array();
+    $slug = (string) $slug;
+    if (isset($cache[$slug])) {
+        return $cache[$slug];
+    }
+
+    try {
+        $stmt = $pdo->prepare('SELECT name, quota_max_channels, quota_max_videos_per_list FROM subscription_plans WHERE slug = ? LIMIT 1');
+        $stmt->execute(array($slug));
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {
+        $legacy = plan_limits_get_tier_limits_legacy($slug);
+        $cache[$slug] = $legacy;
+
+        return $legacy;
+    }
+
+    if (!$row) {
+        $legacy = plan_limits_get_tier_limits_legacy($slug);
+        $cache[$slug] = $legacy;
+
+        return $legacy;
+    }
+
+    $ch = (int) $row['quota_max_channels'];
+    $vid = (int) $row['quota_max_videos_per_list'];
+    if ($ch === 0 && $vid === 0) {
+        $legacy = plan_limits_get_tier_limits_legacy($slug);
+        $cache[$slug] = $legacy;
+
+        return $legacy;
+    }
+
+    $out = array(
+        'videos' => $vid,
+        'channels' => $ch,
+        'name' => (string) $row['name'],
+    );
+    $cache[$slug] = $out;
+
+    return $out;
+}
+
+/**
  * 是否為免費 slug（相容舊邏輯）
  */
 function plan_limits_is_free(PDO $pdo, $userId)
@@ -65,20 +114,22 @@ function plan_limits_is_free(PDO $pdo, $userId)
  */
 function plan_limits_max_videos_per_list(PDO $pdo, $userId)
 {
-    $cfg = plan_limits_get_tier_limits(plan_limits_get_active_slug($pdo, $userId));
+    $cfg = plan_limits_get_tier_limits($pdo, plan_limits_get_active_slug($pdo, $userId));
     if ($cfg === null) {
         return null;
     }
-    return (int)$cfg['videos'];
+
+    return (int) $cfg['videos'];
 }
 
 function plan_limits_max_channels(PDO $pdo, $userId)
 {
-    $cfg = plan_limits_get_tier_limits(plan_limits_get_active_slug($pdo, $userId));
+    $cfg = plan_limits_get_tier_limits($pdo, plan_limits_get_active_slug($pdo, $userId));
     if ($cfg === null) {
         return null;
     }
-    return (int)$cfg['channels'];
+
+    return (int) $cfg['channels'];
 }
 
 /**
@@ -94,27 +145,29 @@ function plan_limits_max_categories(PDO $pdo, $userId)
  */
 function plan_limits_has_quota(PDO $pdo, $userId)
 {
-    return plan_limits_get_tier_limits(plan_limits_get_active_slug($pdo, $userId)) !== null;
+    return plan_limits_get_tier_limits($pdo, plan_limits_get_active_slug($pdo, $userId)) !== null;
 }
 
 /**
- * 首頁／說明用一行文字
+ * 首頁／說明用一行文字（先頻道數、再清單筆數，與會員中心價目表一致）
  */
 function plan_limits_quota_banner_text(PDO $pdo, $userId)
 {
-    $cfg = plan_limits_get_tier_limits(plan_limits_get_active_slug($pdo, $userId));
+    $cfg = plan_limits_get_tier_limits($pdo, plan_limits_get_active_slug($pdo, $userId));
     if ($cfg === null) {
         return '';
     }
-    return $cfg['name'] . '：待看／已看列表各最多顯示 ' . (int)$cfg['videos'] . ' 筆；頻道最多 '
-        . (int)$cfg['channels'] . ' 個；分類數量不限。';
+
+    return $cfg['name'] . '：頻道最多 ' . (int) $cfg['channels'] . ' 個；待看／已看列表各最多顯示 '
+        . (int) $cfg['videos'] . ' 筆；分類數量不限。';
 }
 
 function plan_limits_channel_count(PDO $pdo, $userId)
 {
     $st = $pdo->prepare('SELECT COUNT(*) FROM channels WHERE user_id = ?');
     $st->execute(array($userId));
-    return (int)$st->fetchColumn();
+
+    return (int) $st->fetchColumn();
 }
 
 function plan_limits_can_add_channel(PDO $pdo, $userId)
@@ -123,6 +176,7 @@ function plan_limits_can_add_channel(PDO $pdo, $userId)
     if ($max === null) {
         return true;
     }
+
     return plan_limits_channel_count($pdo, $userId) < $max;
 }
 
@@ -130,7 +184,8 @@ function plan_limits_category_count(PDO $pdo, $userId)
 {
     $st = $pdo->prepare('SELECT COUNT(*) FROM channel_categories WHERE user_id = ?');
     $st->execute(array($userId));
-    return (int)$st->fetchColumn();
+
+    return (int) $st->fetchColumn();
 }
 
 function plan_limits_can_add_category(PDO $pdo, $userId)
@@ -139,5 +194,6 @@ function plan_limits_can_add_category(PDO $pdo, $userId)
     if ($max === null) {
         return true;
     }
+
     return plan_limits_category_count($pdo, $userId) < $max;
 }

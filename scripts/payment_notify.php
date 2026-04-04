@@ -93,7 +93,13 @@ try {
     }
 
     $uid = (int)$order['user_id'];
-    $planId = $pdo->query("SELECT id FROM subscription_plans WHERE slug = 'go' AND is_active = 1 LIMIT 1")->fetchColumn();
+    $planSlug = 'go';
+    if (isset($order['plan_slug']) && (string)$order['plan_slug'] !== '') {
+        $planSlug = (string)$order['plan_slug'];
+    }
+    $pst = $pdo->prepare('SELECT id FROM subscription_plans WHERE slug = ? AND is_active = 1 LIMIT 1');
+    $pst->execute(array($planSlug));
+    $planId = $pst->fetchColumn();
     if ($planId) {
         $planId = (int)$planId;
         $sid = $pdo->query('SELECT id FROM subscriptions WHERE user_id = ' . (int)$uid . ' ORDER BY id DESC LIMIT 1')->fetchColumn();

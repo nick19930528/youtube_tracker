@@ -9,7 +9,7 @@ $controller = new VideoController($pdo, $uid);
 
 require_once __DIR__ . '/../../config/plan_limits.php';
 $videoCap = plan_limits_max_videos_per_list($pdo, $uid);
-$_tier = plan_limits_get_tier_limits(plan_limits_get_active_slug($pdo, $uid));
+$_tier = plan_limits_get_tier_limits($pdo, plan_limits_get_active_slug($pdo, $uid));
 
 $isWatched = isset($_GET['watched']) ? (int)$_GET['watched'] : 0;
 $keyword = trim($_GET['keyword'] ?? '');

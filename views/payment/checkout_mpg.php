@@ -11,20 +11,25 @@ $user = auth_user();
 $error = '';
 $form = null;
 
+$requestedSlug = isset($_GET['plan']) ? trim((string) $_GET['plan']) : 'go';
+if ($requestedSlug === '' || !preg_match('/^[a-z0-9_-]{1,64}$/', $requestedSlug)) {
+    $requestedSlug = 'go';
+}
+
 if (!payment_minimal_is_configured()) {
     $error = '金流尚未設定：請在 config/payment_minimal.php 或環境變數設定 MPG_MERCHANT_ID、MPG_HASH_KEY、MPG_HASH_IV。';
 } elseif (!$user || trim((string)$user['email']) === '' || !filter_var($user['email'], FILTER_VALIDATE_EMAIL)) {
     $error = '請確認會員 Email 可收信。';
 } else {
     $stmt = $pdo->prepare('SELECT id, name, slug, price_cents, is_active FROM subscription_plans WHERE slug = ? LIMIT 1');
-    $stmt->execute(array('go'));
+    $stmt->execute(array($requestedSlug));
     $plan = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$plan || !(int)$plan['is_active']) {
-        $error = '找不到 Go 方案或已停用。';
+        $error = '找不到此方案或已停用（' . htmlspecialchars($requestedSlug) . '）。';
     } else {
         $priceCents = (int)$plan['price_cents'];
         if ($priceCents <= 0) {
-            $error = 'Go 方案金額未設定（price_cents）。';
+            $error = '此方案為免費或金額未設定，無法線上付款。';
         } else {
             $amt = (int)round($priceCents / 100);
             if ($amt < 1) {
@@ -34,11 +39,17 @@ if (!payment_minimal_is_configured()) {
                 if (strlen($orderNo) > 30) {
                     $orderNo = substr($orderNo, 0, 30);
                 }
+                $planSlug = (string) $plan['slug'];
                 try {
-                    $ins = $pdo->prepare('INSERT INTO payment_orders (user_id, merchant_order_no, amt, status) VALUES (?, ?, ?, ?)');
-                    $ins->execute(array($uid, $orderNo, $amt, 'pending'));
+                    $ins = $pdo->prepare('INSERT INTO payment_orders (user_id, merchant_order_no, amt, plan_slug, status) VALUES (?, ?, ?, ?, ?)');
+                    $ins->execute(array($uid, $orderNo, $amt, $planSlug, 'pending'));
                 } catch (Exception $e) {
-                    $error = '無法建立訂單（請執行 migrations/006_payment_orders_minimal.sql）。';
+                    try {
+                        $ins = $pdo->prepare('INSERT INTO payment_orders (user_id, merchant_order_no, amt, status) VALUES (?, ?, ?, ?)');
+                        $ins->execute(array($uid, $orderNo, $amt, 'pending'));
+                    } catch (Exception $e2) {
+                        $error = '無法建立訂單（請執行 migrations/006_payment_orders_minimal.sql）。';
+                    }
                 }
                 if ($error === '') {
                     $itemDesc = (string)$plan['name'];

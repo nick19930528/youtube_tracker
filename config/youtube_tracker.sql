@@ -93,6 +93,8 @@ CREATE TABLE `subscription_plans` (
   `billing_interval` enum('free','month','year') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'free',
   `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `sort_order` int(11) NOT NULL DEFAULT 0,
+  `quota_max_channels` int(10) UNSIGNED NOT NULL DEFAULT 0 COMMENT '可訂閱頻道數上限',
+  `quota_max_videos_per_list` int(10) UNSIGNED NOT NULL DEFAULT 0 COMMENT '待看／已看單邊清單筆數上限',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

@@ -120,6 +120,53 @@ $selGender = array_key_exists('gender', $profile) && $profile['gender'] !== null
 $dashAutoLoad = (isset($profile['dash_auto_load']) && (int)$profile['dash_auto_load'] === 0) ? 0 : 1;
 $fetchMaxAgeDays = isset($profile['fetch_max_age_days']) ? (int) $profile['fetch_max_age_days'] : 7;
 $fetchMaxPerChannel = isset($profile['fetch_max_per_channel']) ? (int) $profile['fetch_max_per_channel'] : 1;
+
+require_once __DIR__ . '/../../config/plan_limits.php';
+require_once __DIR__ . '/../../config/payment_minimal.php';
+
+$planRows = $pdo->query('SELECT id, name, slug, price_cents, currency, billing_interval, sort_order, quota_max_channels, quota_max_videos_per_list FROM subscription_plans WHERE is_active = 1 ORDER BY sort_order ASC, id ASC')->fetchAll(PDO::FETCH_ASSOC);
+$slugNow = plan_limits_get_active_slug($pdo, $uid);
+$currentPlanSort = 0;
+foreach ($planRows as $_pr) {
+    if ($_pr['slug'] === $slugNow) {
+        $currentPlanSort = (int) $_pr['sort_order'];
+        break;
+    }
+}
+$canMpg = payment_minimal_is_configured();
+
+function account_center_plan_price(array $p)
+{
+    if ((int) $p['price_cents'] === 0 || (isset($p['billing_interval']) && $p['billing_interval'] === 'free')) {
+        return '免費';
+    }
+    $amt = number_format((int) $p['price_cents'] / 100, 0);
+
+    return $p['currency'] . ' ' . $amt . '／' . account_center_billing_unit($p['billing_interval']);
+}
+
+function account_center_billing_unit($iv)
+{
+    $m = array('month' => '月', 'year' => '年', 'free' => '—');
+
+    return isset($m[$iv]) ? $m[$iv] : (string) $iv;
+}
+
+function account_center_plan_quota(array $p)
+{
+    $ch = isset($p['quota_max_channels']) ? (int) $p['quota_max_channels'] : 0;
+    $vid = isset($p['quota_max_videos_per_list']) ? (int) $p['quota_max_videos_per_list'] : 0;
+    if ($ch === 0 && $vid === 0) {
+        $cfg = plan_limits_get_tier_limits_legacy((string) $p['slug']);
+        if ($cfg === null) {
+            return '額度請見方案說明（或洽管理員）';
+        }
+        $ch = (int) $cfg['channels'];
+        $vid = (int) $cfg['videos'];
+    }
+
+    return '頻道最多 ' . $ch . ' 個；待看／已看各最多 ' . $vid . ' 筆';
+}
 ?>
 <!DOCTYPE html>
 <html lang="zh-Hant">
@@ -267,6 +314,29 @@ $fetchMaxPerChannel = isset($profile['fetch_max_per_channel']) ? (int) $profile[
             transition: transform 0.15s, box-shadow 0.15s;
         }
         .btn-upgrade:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(3, 105, 161, 0.4); }
+        .plan-table-wrap { overflow-x: auto; margin: 0 0 18px; -webkit-overflow-scrolling: touch; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; }
+        .plan-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .plan-table th, .plan-table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+        .plan-table th { color: #64748b; font-weight: 600; font-size: 12px; background: #f8fafc; white-space: nowrap; }
+        .plan-table tr:last-child td { border-bottom: none; }
+        .plan-table tr.plan-row--current td { background: #eff6ff; }
+        .plan-table .col-name { font-weight: 600; color: #0f172a; min-width: 6rem; }
+        .plan-table .col-action { white-space: nowrap; width: 1%; }
+        .plan-badge--current { display: inline-block; background: #dbeafe; color: #1d4ed8; padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; }
+        .btn-upgrade-sm {
+            display: inline-block;
+            padding: 7px 14px;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: #fff !important;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .btn-upgrade-sm:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(37, 99, 235, 0.4); }
+        .subscription-detail { margin-top: 8px; padding-top: 16px; border-top: 1px dashed #e2e8f0; }
     </style>
 </head>
 <body>
@@ -370,49 +440,80 @@ $fetchMaxPerChannel = isset($profile['fetch_max_per_channel']) ? (int) $profile[
 
     <div class="card">
         <h2>訂閱方案</h2>
+        <p class="muted" style="margin-top: 0;">以下為目前啟用的方案；付費方案為藍新 MPG 一次付清。升級後會依 Notify 更新訂閱狀態。</p>
+
+        <div class="plan-table-wrap">
+            <table class="plan-table" role="table" aria-label="方案價目表">
+                <thead>
+                    <tr>
+                        <th scope="col">方案</th>
+                        <th scope="col">價格</th>
+                        <th scope="col">額度摘要</th>
+                        <th scope="col" class="col-action">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (count($planRows) === 0): ?>
+                        <tr>
+                            <td colspan="4" class="muted" style="text-align:center;padding:20px;">尚無啟用中的方案，請聯絡管理員。</td>
+                        </tr>
+                    <?php endif; ?>
+                    <?php foreach ($planRows as $p): ?>
+                        <?php
+                        $pSlug = (string) $p['slug'];
+                        $isPaid = (int) $p['price_cents'] > 0;
+                        $isCurrent = ($pSlug === $slugNow);
+                        $showUpgrade = $isPaid && $canMpg && ! $isCurrent && (int) $p['sort_order'] > $currentPlanSort;
+                        ?>
+                        <tr class="<?= $isCurrent ? 'plan-row--current' : '' ?>">
+                            <td class="col-name">
+                                <?= htmlspecialchars($p['name']) ?>
+                                <span class="muted" style="font-size:12px;">（<?= htmlspecialchars($pSlug) ?>）</span>
+                            </td>
+                            <td><?= htmlspecialchars(account_center_plan_price($p)) ?></td>
+                            <td style="color:#475569;font-size:13px;line-height:1.45;"><?= htmlspecialchars(account_center_plan_quota($p)) ?></td>
+                            <td class="col-action">
+                                <?php if ($isCurrent): ?>
+                                    <span class="plan-badge--current">目前使用</span>
+                                <?php elseif ($showUpgrade): ?>
+                                    <a class="btn-upgrade-sm" href="index.php?page=pay&amp;plan=<?= urlencode($pSlug) ?>">升級</a>
+                                <?php elseif ($isPaid && ! $canMpg): ?>
+                                    <span class="muted" style="font-size:12px;">金流未設定</span>
+                                <?php elseif ($isPaid && ! $showUpgrade && ! $isCurrent): ?>
+                                    <span class="muted" style="font-size:12px;">—</span>
+                                <?php else: ?>
+                                    <span class="muted" style="font-size:12px;">—</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+
         <?php if ($sub): ?>
-            <div class="row">
-                <strong>方案</strong>
-                <span class="plan-badge"><?= htmlspecialchars($sub['plan_name']) ?></span>
-                <span class="muted">（<?= htmlspecialchars($sub['slug']) ?>）</span>
-            </div>
-            <div class="row"><strong>狀態</strong> <?= htmlspecialchars(account_status_label($sub['status'])) ?></div>
-            <div class="row"><strong>計費週期</strong> <?= htmlspecialchars(account_billing_label($sub['billing_interval'])) ?></div>
-            <div class="row"><strong>金額</strong>
-                <?php
-                if ((int)$sub['price_cents'] === 0 || $sub['billing_interval'] === 'free') {
-                    echo '免費';
-                } else {
-                    $amt = number_format((int)$sub['price_cents'] / 100, 0);
-                    echo htmlspecialchars($sub['currency'] . ' ' . $amt);
-                }
-                ?>
-            </div>
-            <?php if (!empty($sub['current_period_start']) || !empty($sub['current_period_end'])): ?>
-                <div class="row"><strong>目前週期</strong>
-                    <?= htmlspecialchars($sub['current_period_start'] ? $sub['current_period_start'] : '—') ?>
-                    ～
-                    <?= htmlspecialchars($sub['current_period_end'] ? $sub['current_period_end'] : '—') ?>
+            <div class="subscription-detail">
+                <p style="margin:0 0 10px;font-size:13px;font-weight:600;color:#334155;">目前訂閱詳情</p>
+                <div class="row">
+                    <strong>狀態</strong> <?= htmlspecialchars(account_status_label($sub['status'])) ?>
                 </div>
-            <?php endif; ?>
-            <?php if (!empty($sub['cancel_at_period_end'])): ?>
-                <div class="row"><strong>續訂</strong> 將於本週期結束後取消</div>
-            <?php endif; ?>
+                <?php if (!empty($sub['current_period_start']) || !empty($sub['current_period_end'])): ?>
+                    <div class="row"><strong>目前週期</strong>
+                        <?= htmlspecialchars($sub['current_period_start'] ? $sub['current_period_start'] : '—') ?>
+                        ～
+                        <?= htmlspecialchars($sub['current_period_end'] ? $sub['current_period_end'] : '—') ?>
+                    </div>
+                <?php endif; ?>
+                <?php if (!empty($sub['cancel_at_period_end'])): ?>
+                    <div class="row"><strong>續訂</strong> 將於本週期結束後取消</div>
+                <?php endif; ?>
+            </div>
         <?php else: ?>
-            <p class="muted">尚無訂閱紀錄。若您應享有方案，請聯絡管理員。</p>
+            <p class="muted" style="margin-bottom:0;">尚無訂閱紀錄。若您應享有方案，請聯絡管理員。</p>
         <?php endif; ?>
-        <?php
-        require_once __DIR__ . '/../../config/payment_minimal.php';
-        $slugNow = $sub ? (string)$sub['slug'] : 'free';
-        $canMpg = payment_minimal_is_configured();
-        ?>
-        <?php if ($slugNow === 'free' && $canMpg): ?>
-            <p style="margin: 0;">
-                <a class="btn-upgrade" href="index.php?page=pay">升級 Go（MPG 一次付清 · 最小單元）</a>
-            </p>
-            <p class="hint" style="margin-top: 10px; margin-bottom: 0;">使用藍新 MPG 幕前一次付清；請先執行資料庫 migration <code>006_payment_orders_minimal.sql</code> 並設定 <code>MPG_*</code> 金鑰。</p>
-        <?php elseif ($slugNow === 'free'): ?>
-            <p class="hint" style="margin-top: 16px; margin-bottom: 0;">付費升級請在 <code>config/payment_minimal.php</code> 或環境變數設定商店代號與 Hash Key／IV。</p>
+
+        <?php if ($slugNow === 'free' && ! $canMpg): ?>
+            <p class="hint" style="margin-top: 14px; margin-bottom: 0;">若要線上升級，請在環境變數或設定檔填寫藍新 <code>MPG_MERCHANT_ID</code>、<code>MPG_HASH_KEY</code>、<code>MPG_HASH_IV</code>；並執行 migration <code>006_payment_orders_minimal.sql</code>、<code>009_payment_orders_plan_slug.sql</code>。</p>
         <?php endif; ?>
     </div>
 </div>
