@@ -11,7 +11,7 @@ class AccountController
 
     public function getProfile($userId)
     {
-        $stmt = $this->pdo->prepare('SELECT id, email, name, gender, email_verified_at, created_at FROM users WHERE id = ? LIMIT 1');
+        $stmt = $this->pdo->prepare('SELECT id, email, name, gender, COALESCE(dash_auto_load, 1) AS dash_auto_load, email_verified_at, created_at FROM users WHERE id = ? LIMIT 1');
         $stmt->execute(array($userId));
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ? $row : null;
@@ -46,6 +46,13 @@ class AccountController
         $g = in_array($gender, $allowedG, true) ? ($gender === '' ? null : $gender) : null;
         $stmt = $this->pdo->prepare('UPDATE users SET name = ?, gender = ? WHERE id = ?');
         return (bool)$stmt->execute(array($name, $g, $userId));
+    }
+
+    public function updateDashAutoLoad($userId, $enabled)
+    {
+        $v = $enabled ? 1 : 0;
+        $stmt = $this->pdo->prepare('UPDATE users SET dash_auto_load = ? WHERE id = ?');
+        return (bool)$stmt->execute(array($v, $userId));
     }
 
     /**

@@ -108,6 +108,7 @@ CREATE TABLE `users` (
   `password_hash` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `gender` varchar(16) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'm / f / other / 留空',
+  `dash_auto_load` tinyint(1) NOT NULL DEFAULT 1 COMMENT '首頁 1=捲動分頁 0=一次載入全部',
   `email_verified_at` datetime DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()

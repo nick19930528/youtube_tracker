@@ -10,6 +10,16 @@ $ctrl = new AccountController($pdo);
 $notice = isset($_GET['notice']) ? (string)$_GET['notice'] : '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['save_dash_pref'])) {
+        $auto = (isset($_POST['dash_auto_load']) && (string)$_POST['dash_auto_load'] === '1') ? 1 : 0;
+        if ($ctrl->updateDashAutoLoad($uid, $auto)) {
+            $_SESSION['dash_auto_load'] = $auto;
+            header('Location: index.php?page=account&notice=dash_pref_ok');
+            exit;
+        }
+        header('Location: index.php?page=account&notice=dash_pref_err');
+        exit;
+    }
     if (isset($_POST['save_profile'])) {
         $name = isset($_POST['name']) ? $_POST['name'] : '';
         $gender = isset($_POST['gender']) ? $_POST['gender'] : '';
@@ -84,11 +94,16 @@ if ($notice === 'profile_ok') {
     $noticeText = '密碼已變更。';
 } elseif (strpos($notice, 'pwd:') === 0) {
     $noticeText = rawurldecode(substr($notice, 4));
+} elseif ($notice === 'dash_pref_ok') {
+    $noticeText = '已更新首頁載入方式。';
+} elseif ($notice === 'dash_pref_err') {
+    $noticeText = '無法更新首頁載入方式，請稍後再試。';
 }
 
 $selGender = array_key_exists('gender', $profile) && $profile['gender'] !== null && $profile['gender'] !== ''
     ? $profile['gender']
     : '';
+$dashAutoLoad = (isset($profile['dash_auto_load']) && (int)$profile['dash_auto_load'] === 0) ? 0 : 1;
 ?>
 <!DOCTYPE html>
 <html lang="zh-Hant">
@@ -143,7 +158,7 @@ $selGender = array_key_exists('gender', $profile) && $profile['gender'] !== null
     <p class="sub">管理個人資料、密碼與查看訂閱方案</p>
 
     <?php if ($noticeText !== ''): ?>
-        <div class="alert <?= (strpos($notice, 'pwd:') === 0 || $notice === 'profile_err') ? 'alert--err' : 'alert--ok' ?>">
+        <div class="alert <?= (strpos($notice, 'pwd:') === 0 || $notice === 'profile_err' || $notice === 'dash_pref_err') ? 'alert--err' : 'alert--ok' ?>">
             <?= htmlspecialchars($noticeText) ?>
         </div>
     <?php endif; ?>
@@ -173,6 +188,28 @@ $selGender = array_key_exists('gender', $profile) && $profile['gender'] !== null
             <p class="hint">Email 如需變更請洽管理員（目前系統未開放自行改 Email）。</p>
             <button type="submit">儲存個人資料</button>
         </form>
+    </div>
+
+    <div class="card">
+        <h2>首頁載入方式</h2>
+        <p class="muted" style="margin-top: 0;">設定回首頁時，左側「最新影片」（待看／已看／已訂閱）要如何載入內容。</p>
+        <form method="post" action="index.php?page=account">
+            <input type="hidden" name="save_dash_pref" value="1">
+            <div class="row" style="margin-bottom: 10px;">
+                <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-weight: normal;">
+                    <input type="radio" name="dash_auto_load" value="1"<?= $dashAutoLoad === 1 ? ' checked' : '' ?> style="margin-top: 3px;">
+                    <span><strong>捲動自動載入</strong> — 先顯示一截，捲到接近頁面底部時再載入下一批（類似 YouTube）。</span>
+                </label>
+            </div>
+            <div class="row" style="margin-bottom: 14px;">
+                <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-weight: normal;">
+                    <input type="radio" name="dash_auto_load" value="0"<?= $dashAutoLoad === 0 ? ' checked' : '' ?> style="margin-top: 3px;">
+                    <span><strong>一次載入全部</strong> — 開啟首頁時一次載入完整清單（受方案單邊筆數上限），不使用捲動分頁與「載入更多」。</span>
+                </label>
+            </div>
+            <button type="submit">儲存載入方式</button>
+        </form>
+        <p class="hint" style="margin-bottom: 0;">變更後重新整理首頁即生效；若資料庫尚未執行 migration <code>007_users_dash_auto_load.sql</code>，請先由管理員新增欄位。</p>
     </div>
 
     <div class="card">

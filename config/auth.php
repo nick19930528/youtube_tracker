@@ -68,7 +68,7 @@ function auth_login(PDO $pdo, $email, $password)
     if ($email === '' || $password === '') {
         return false;
     }
-    $stmt = $pdo->prepare('SELECT id, email, name, password_hash FROM users WHERE email = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT id, email, name, password_hash, COALESCE(dash_auto_load, 1) AS dash_auto_load FROM users WHERE email = ? LIMIT 1');
     $stmt->execute(array($email));
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$row || !password_verify($password, $row['password_hash'])) {
@@ -77,6 +77,7 @@ function auth_login(PDO $pdo, $email, $password)
     $_SESSION['user_id'] = (int)$row['id'];
     $_SESSION['user_email'] = $row['email'];
     $_SESSION['user_name'] = $row['name'];
+    $_SESSION['dash_auto_load'] = isset($row['dash_auto_load']) ? ((int)$row['dash_auto_load'] ? 1 : 0) : 1;
     return true;
 }
 
@@ -145,5 +146,6 @@ function auth_register(PDO $pdo, $name, $email, $gender, $password, $password2)
     $_SESSION['user_id'] = $uid;
     $_SESSION['user_email'] = $email;
     $_SESSION['user_name'] = $name;
+    $_SESSION['dash_auto_load'] = 1;
     return true;
 }

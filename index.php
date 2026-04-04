@@ -277,125 +277,7 @@ if ($page === 'home' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-/** 依頻道名稱分組（分類篩選時左欄顯示） */
-function group_videos_by_channel_for_dashboard(array $rows) {
-    $groups = [];
-    foreach ($rows as $v) {
-        $k = (string)($v['channel_name'] ?? '');
-        if (!isset($groups[$k])) {
-            $groups[$k] = [];
-        }
-        $groups[$k][] = $v;
-    }
-    ksort($groups, SORT_NATURAL);
-    return $groups;
-}
-
-/** 首頁縮圖 overlay：發布至今（相對時間） */
-function dash_video_published_ago($publishedAt) {
-    if ($publishedAt === null || $publishedAt === '') {
-        return '—';
-    }
-    $ts = strtotime($publishedAt);
-    if ($ts === false) {
-        return '—';
-    }
-    $sec = time() - $ts;
-    if ($sec < 0) {
-        return '—';
-    }
-    if ($sec < 60) {
-        return '剛剛';
-    }
-    if ($sec < 3600) {
-        return (string) (int) floor($sec / 60) . ' 分鐘前';
-    }
-    if ($sec < 86400) {
-        return (string) (int) floor($sec / 3600) . ' 小時前';
-    }
-    if ($sec < 604800) {
-        return (string) (int) floor($sec / 86400) . ' 天前';
-    }
-    if ($sec < 2592000) {
-        return (string) (int) floor($sec / 604800) . ' 週前';
-    }
-    if ($sec < 31536000) {
-        return (string) (int) floor($sec / 2592000) . ' 個月前';
-    }
-    return (string) (int) floor($sec / 31536000) . ' 年前';
-}
-
-function dash_video_duration_label($duration) {
-    $s = (int) $duration;
-    if ($s < 1) {
-        return '—';
-    }
-    return $s >= 3600 ? gmdate('H:i:s', $s) : gmdate('i:s', $s);
-}
-
-/**
- * 待看／已看縮圖：與已訂閱頻道卡相同 hover 顯示資訊與刪除
- *
- * @param 'unwatched'|'watched' $mode
- */
-function render_dashboard_video_thumb_block(array $v, $mode) {
-    if (!in_array($mode, ['unwatched', 'watched'], true)) {
-        $mode = 'unwatched';
-    }
-    $vid = (int) ($v['id'] ?? 0);
-    if ($vid < 1) {
-        return;
-    }
-    $thumb = trim((string) ($v['thumbnail_url'] ?? ''));
-    if ($mode === 'unwatched') {
-        $targetHref = 'index.php?page=open_video&amp;id=' . $vid;
-    } else {
-        $yu = (string) ($v['youtube_url'] ?? '');
-        $targetHref = $yu !== '' ? htmlspecialchars($yu, ENT_QUOTES, 'UTF-8') : '#';
-    }
-    $pubAgo = htmlspecialchars(dash_video_published_ago($v['published_at'] ?? null), ENT_QUOTES, 'UTF-8');
-    $views = htmlspecialchars(number_format((int) ($v['view_count'] ?? 0)), ENT_QUOTES, 'UTF-8');
-    $comments = htmlspecialchars(number_format((int) ($v['comment_count'] ?? 0)), ENT_QUOTES, 'UTF-8');
-    $dur = htmlspecialchars(dash_video_duration_label($v['duration'] ?? 0), ENT_QUOTES, 'UTF-8');
-    ?>
-    <div class="video-media">
-        <?php if ($thumb !== ''): ?>
-            <a href="<?= $targetHref ?>" class="video-thumb-link" target="_blank" rel="noopener noreferrer">
-                <img src="<?= htmlspecialchars($thumb, ENT_QUOTES, 'UTF-8') ?>" alt="">
-            </a>
-        <?php else: ?>
-            <a href="<?= $targetHref ?>" class="video-thumb-link video-thumb-link--empty" target="_blank" rel="noopener noreferrer">
-                <span class="video-thumb-placeholder" role="img" aria-label="無縮圖"></span>
-            </a>
-        <?php endif; ?>
-        <div class="video-thumb-overlay">
-            <div class="video-thumb-overlay-main">
-                <div class="video-thumb-stat">
-                    <span class="video-thumb-stat-label">發布</span>
-                    <span class="video-thumb-stat-value"><?= $pubAgo ?></span>
-                </div>
-                <div class="video-thumb-stat">
-                    <span class="video-thumb-stat-label">觀看</span>
-                    <span class="video-thumb-stat-value"><?= $views ?></span>
-                </div>
-                <div class="video-thumb-stat">
-                    <span class="video-thumb-stat-label">留言</span>
-                    <span class="video-thumb-stat-value"><?= $comments ?></span>
-                </div>
-                <div class="video-thumb-stat">
-                    <span class="video-thumb-stat-label">長度</span>
-                    <span class="video-thumb-stat-value"><?= $dur ?></span>
-                </div>
-            </div>
-            <div class="video-thumb-overlay-actions">
-                <button type="button" class="video-thumb-btn video-thumb-btn--del"
-                        data-video-id="<?= $vid ?>"
-                        title="從清單刪除">🗑 刪除</button>
-            </div>
-        </div>
-    </div>
-    <?php
-}
+require_once __DIR__ . '/includes/dashboard_render.php';
 
 /* =========================
    📊 KPI
@@ -427,7 +309,6 @@ $todayTime = $todaySeconds >= 3600
 ========================= */
 require_once __DIR__ . '/config/plan_limits.php';
 $_maxVideosList = plan_limits_max_videos_per_list($pdo, $uid);
-$videoListSqlLimit = ($_maxVideosList === null) ? 999999 : (int)$_maxVideosList;
 $quotaBannerText = plan_limits_quota_banner_text($pdo, $uid);
 
 $filterCategoryId = isset($_GET['category_id']) ? (int)$_GET['category_id'] : 0;
@@ -442,21 +323,60 @@ if ($filterCategoryId > 0) {
     }
 }
 
+if (!isset($_SESSION['dash_auto_load']) && $uid > 0) {
+    try {
+        $stmt = $pdo->prepare('SELECT COALESCE(dash_auto_load, 1) FROM users WHERE id = ? LIMIT 1');
+        $stmt->execute([$uid]);
+        $d = $stmt->fetchColumn();
+        $_SESSION['dash_auto_load'] = ($d !== false && (int)$d) ? 1 : 0;
+    } catch (Exception $e) {
+        $_SESSION['dash_auto_load'] = 1;
+    }
+}
+$dashAutoLoadPref = (isset($_SESSION['dash_auto_load']) && (int)$_SESSION['dash_auto_load'] === 0) ? 0 : 1;
+
 /* =========================
-   🎬 待看 / 已看（依分類時只顯示該分類內頻道，並依頻道分組）
+   🎬 待看 / 已看（dash_auto_load=1：首屏＋捲動載入；=0：一次載入至方案上限）
 ========================= */
+$dashFeedPage = (int) DASH_FEED_PAGE_SIZE;
+$videoCap = ($_maxVideosList === null) ? PHP_INT_MAX : (int) $_maxVideosList;
+$fullVideoLimit = ($_maxVideosList === null) ? 999999 : (int) $_maxVideosList;
+if ($dashAutoLoadPref === 0) {
+    $dashVideoInitialLimit = (int) $fullVideoLimit;
+} else {
+    $dashVideoInitialLimit = min($dashFeedPage, $videoCap);
+}
+
 if ($filterCategoryId > 0) {
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*) FROM videos v
+        INNER JOIN channels ch ON v.channel_name COLLATE utf8mb4_unicode_ci = ch.name COLLATE utf8mb4_unicode_ci
+            AND v.user_id = ch.user_id
+        WHERE v.user_id = ? AND v.is_watched = 0 AND ch.category_id = ?
+    ");
+    $stmt->execute([$uid, $filterCategoryId]);
+    $dashUnwatchedTotal = (int) $stmt->fetchColumn();
+
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*) FROM videos v
+        INNER JOIN channels ch ON v.channel_name COLLATE utf8mb4_unicode_ci = ch.name COLLATE utf8mb4_unicode_ci
+            AND v.user_id = ch.user_id
+        WHERE v.user_id = ? AND v.is_watched = 1 AND ch.category_id = ?
+    ");
+    $stmt->execute([$uid, $filterCategoryId]);
+    $dashWatchedTotal = (int) $stmt->fetchColumn();
+
+    $lim = (int) $dashVideoInitialLimit;
     $stmt = $pdo->prepare("
         SELECT v.* FROM videos v
         INNER JOIN channels ch ON v.channel_name COLLATE utf8mb4_unicode_ci = ch.name COLLATE utf8mb4_unicode_ci
             AND v.user_id = ch.user_id
         WHERE v.user_id = ? AND v.is_watched = 0 AND ch.category_id = ?
         ORDER BY ch.name ASC, v.published_at DESC
-        LIMIT {$videoListSqlLimit}
+        LIMIT {$lim}
     ");
     $stmt->execute([$uid, $filterCategoryId]);
     $latestVideos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    $latestVideosGrouped = group_videos_by_channel_for_dashboard($latestVideos);
 
     $stmt = $pdo->prepare("
         SELECT v.* FROM videos v
@@ -464,35 +384,62 @@ if ($filterCategoryId > 0) {
             AND v.user_id = ch.user_id
         WHERE v.user_id = ? AND v.is_watched = 1 AND ch.category_id = ?
         ORDER BY ch.name ASC, COALESCE(v.watched_at, v.added_at) DESC
-        LIMIT {$videoListSqlLimit}
+        LIMIT {$lim}
     ");
     $stmt->execute([$uid, $filterCategoryId]);
     $latestWatchedVideos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    $latestWatchedVideosGrouped = group_videos_by_channel_for_dashboard($latestWatchedVideos);
 } else {
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM videos WHERE user_id = ? AND is_watched = 0");
+    $stmt->execute([$uid]);
+    $dashUnwatchedTotal = (int) $stmt->fetchColumn();
+
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM videos WHERE user_id = ? AND is_watched = 1");
+    $stmt->execute([$uid]);
+    $dashWatchedTotal = (int) $stmt->fetchColumn();
+
+    $lim = (int) $dashVideoInitialLimit;
     $stmt = $pdo->prepare("
-        SELECT * FROM videos 
-        WHERE user_id = ? AND is_watched = 0 
-        ORDER BY published_at DESC 
-        LIMIT {$videoListSqlLimit}
+        SELECT * FROM videos
+        WHERE user_id = ? AND is_watched = 0
+        ORDER BY published_at DESC
+        LIMIT {$lim}
     ");
     $stmt->execute([$uid]);
     $latestVideos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    $latestVideosGrouped = [];
+
     $stmt = $pdo->prepare("
-        SELECT * FROM videos 
-        WHERE user_id = ? AND is_watched = 1 
-        ORDER BY COALESCE(watched_at, added_at) DESC 
-        LIMIT {$videoListSqlLimit}
+        SELECT * FROM videos
+        WHERE user_id = ? AND is_watched = 1
+        ORDER BY COALESCE(watched_at, added_at) DESC
+        LIMIT {$lim}
     ");
     $stmt->execute([$uid]);
     $latestWatchedVideos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    $latestWatchedVideosGrouped = [];
 }
+
+$dashUnwatchedMax = min($dashUnwatchedTotal, $videoCap);
+$dashWatchedMax = min($dashWatchedTotal, $videoCap);
+$dashUnwatchedLoaded = count($latestVideos);
+$dashWatchedLoaded = count($latestWatchedVideos);
+$dashMoreUnwatched = ($dashAutoLoadPref === 1) && ($dashUnwatchedLoaded < $dashUnwatchedMax);
+$dashMoreWatched = ($dashAutoLoadPref === 1) && ($dashWatchedLoaded < $dashWatchedMax);
 
 /* =========================
    📺 已訂閱頻道（Dashboard 區塊）
 ========================= */
+$subscribedCountSql = 'SELECT COUNT(*) FROM channels c WHERE c.user_id = ? ';
+if ($filterCategoryId > 0) {
+    $subscribedCountSql .= ' AND c.category_id = ? ';
+}
+$stmt = $pdo->prepare($subscribedCountSql);
+if ($filterCategoryId > 0) {
+    $stmt->execute([$uid, $filterCategoryId]);
+} else {
+    $stmt->execute([$uid]);
+}
+$dashSubscribedTotal = (int) $stmt->fetchColumn();
+
+$limCh = $dashAutoLoadPref === 0 ? 999999 : (int) $dashFeedPage;
 $subscribedSql = "
     SELECT c.id, c.name, c.url, c.thumbnail_url, c.subscriber_count, c.video_count, c.published_at,
            c.is_favorite, cc.name AS category_name
@@ -503,17 +450,18 @@ $subscribedSql = "
 if ($filterCategoryId > 0) {
     $subscribedSql .= " AND c.category_id = ? ";
 }
-$subscribedSql .= " ORDER BY c.name ASC";
+$subscribedSql .= " ORDER BY c.name ASC LIMIT {$limCh}";
 
 if ($filterCategoryId > 0) {
     $stmt = $pdo->prepare($subscribedSql);
     $stmt->execute([$uid, $filterCategoryId]);
-    $subscribedChannels = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } else {
     $stmt = $pdo->prepare($subscribedSql);
     $stmt->execute([$uid]);
-    $subscribedChannels = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
+$subscribedChannels = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$dashSubscribedLoaded = count($subscribedChannels);
+$dashMoreSubscribed = ($dashAutoLoadPref === 1) && ($dashSubscribedLoaded < $dashSubscribedTotal);
 
 $dashTabKey = isset($_GET['dash_tab']) ? (string)$_GET['dash_tab'] : 'unwatched';
 if (!in_array($dashTabKey, ['unwatched', 'watched', 'subscribed'], true)) {
@@ -790,6 +738,44 @@ body {
     color: #888;
     font-size: 14px;
     margin: 0;
+}
+
+.dash-feed-sentinel {
+    height: 1px;
+    margin: 0;
+    padding: 0;
+    pointer-events: none;
+}
+.dash-feed-loading {
+    text-align: center;
+    color: #64748b;
+    font-size: 13px;
+    padding: 10px 8px;
+    margin: 0;
+}
+.dash-feed-end {
+    text-align: center;
+    color: #94a3b8;
+    font-size: 13px;
+    padding: 8px;
+    margin: 0;
+}
+.dash-load-more-row {
+    text-align: center;
+    margin: 12px 0 0;
+}
+.dash-load-more-row .btn-outline {
+    background: #fff;
+    border: 1px solid #cce0f0;
+    color: #0077cc;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-family: inherit;
+}
+.dash-load-more-row .btn-outline:hover {
+    background: #f0f6fb;
 }
 
 /* 已訂閱頻道：圖上名下、多欄填滿 */
@@ -1258,160 +1244,79 @@ body {
     <?php endif; ?>
 
     <div id="panel-unwatched" class="video-panel" role="tabpanel" aria-labelledby="tab-unwatched"<?= $dashTabKey !== 'unwatched' ? ' hidden' : '' ?>>
-        <?php if ($filterCategoryId > 0): ?>
-            <?php if (empty($latestVideosGrouped)): ?>
-                <p class="video-empty">此分類下尚無待看影片。</p>
-            <?php else: ?>
-                <?php foreach ($latestVideosGrouped as $chName => $vidList): ?>
-                    <div class="video-channel-group">
-                        <h4 class="video-channel-title">📺 <?= htmlspecialchars($chName !== '' ? $chName : '（未知頻道）') ?></h4>
-                        <?php foreach ($vidList as $v): ?>
-                            <div class="video">
-                                <?php render_dashboard_video_thumb_block($v, 'unwatched'); ?>
-                                <div class="video-text">
-                                    <a href="index.php?page=open_video&amp;id=<?= (int)$v['id'] ?>" target="_blank" rel="noopener noreferrer">
-                                        <?= htmlspecialchars($v['title']) ?>
-                                    </a>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endforeach; ?>
-            <?php endif; ?>
-        <?php elseif (empty($latestVideos)): ?>
-            <p class="video-empty">目前沒有待看影片。</p>
+        <?php if ($dashUnwatchedTotal < 1): ?>
+            <p class="video-empty"><?= $filterCategoryId > 0 ? '此分類下尚無待看影片。' : '目前沒有待看影片。' ?></p>
         <?php else: ?>
-            <?php foreach ($latestVideos as $v): ?>
-                <div class="video">
-                    <?php render_dashboard_video_thumb_block($v, 'unwatched'); ?>
-                    <div class="video-text">
-                        <a href="index.php?page=open_video&amp;id=<?= (int)$v['id'] ?>" target="_blank" rel="noopener noreferrer">
-                            <?= htmlspecialchars($v['title']) ?>
-                        </a>
-                        <br>
-                        <small><?= htmlspecialchars($v['channel_name'] ?? '') ?></small>
-                    </div>
-                </div>
-            <?php endforeach; ?>
+            <div class="dash-feed-inner dash-feed-inner--videos"
+                 data-dash-feed="unwatched"
+                 data-dash-offset="<?= (int)$dashUnwatchedLoaded ?>"
+                 data-dash-total="<?= (int)$dashUnwatchedMax ?>"
+                 data-dash-more="<?= $dashMoreUnwatched ? '1' : '0' ?>"
+                 data-dash-category="<?= (int)$filterCategoryId ?>">
+                <?= render_dashboard_video_rows_flat($latestVideos, 'unwatched') ?>
+            </div>
+            <div class="dash-feed-sentinel dash-feed-sentinel--unwatched" aria-hidden="true"<?= $dashMoreUnwatched ? '' : ' hidden' ?>></div>
+            <p class="dash-feed-loading" id="dash-feed-loading-unwatched" hidden>載入中…</p>
+            <p class="dash-feed-end" id="dash-feed-end-unwatched"<?= $dashMoreUnwatched ? ' hidden' : '' ?>>已顯示全部</p>
+            <?php if ($dashMoreUnwatched): ?>
+                <p class="dash-load-more-row" data-dash-tab="unwatched" hidden>
+                    <button type="button" class="btn btn-outline dash-load-more-btn" data-dash-tab="unwatched">載入更多</button>
+                </p>
+            <?php endif; ?>
         <?php endif; ?>
     </div>
 
     <div id="panel-watched" class="video-panel" role="tabpanel" aria-labelledby="tab-watched"<?= $dashTabKey !== 'watched' ? ' hidden' : '' ?>>
-        <?php if ($filterCategoryId > 0): ?>
-            <?php if (empty($latestWatchedVideosGrouped)): ?>
-                <p class="video-empty">此分類下尚無已看影片。</p>
-            <?php else: ?>
-                <?php foreach ($latestWatchedVideosGrouped as $chName => $vidList): ?>
-                    <div class="video-channel-group">
-                        <h4 class="video-channel-title">📺 <?= htmlspecialchars($chName !== '' ? $chName : '（未知頻道）') ?></h4>
-                        <?php foreach ($vidList as $v): ?>
-                            <div class="video">
-                                <?php render_dashboard_video_thumb_block($v, 'watched'); ?>
-                                <div class="video-text">
-                                    <a href="<?= htmlspecialchars($v['youtube_url']) ?>" target="_blank" rel="noopener noreferrer">
-                                        <?= htmlspecialchars($v['title']) ?>
-                                    </a>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endforeach; ?>
-            <?php endif; ?>
-        <?php elseif (empty($latestWatchedVideos)): ?>
-            <p class="video-empty">目前沒有已看影片。</p>
+        <?php if ($dashWatchedTotal < 1): ?>
+            <p class="video-empty"><?= $filterCategoryId > 0 ? '此分類下尚無已看影片。' : '目前沒有已看影片。' ?></p>
         <?php else: ?>
-            <?php foreach ($latestWatchedVideos as $v): ?>
-                <div class="video">
-                    <?php render_dashboard_video_thumb_block($v, 'watched'); ?>
-                    <div class="video-text">
-                        <a href="<?= htmlspecialchars($v['youtube_url']) ?>" target="_blank" rel="noopener noreferrer">
-                            <?= htmlspecialchars($v['title']) ?>
-                        </a>
-                        <br>
-                        <small><?= htmlspecialchars($v['channel_name'] ?? '') ?></small>
-                    </div>
-                </div>
-            <?php endforeach; ?>
+            <div class="dash-feed-inner dash-feed-inner--videos"
+                 data-dash-feed="watched"
+                 data-dash-offset="<?= (int)$dashWatchedLoaded ?>"
+                 data-dash-total="<?= (int)$dashWatchedMax ?>"
+                 data-dash-more="<?= $dashMoreWatched ? '1' : '0' ?>"
+                 data-dash-category="<?= (int)$filterCategoryId ?>">
+                <?= render_dashboard_video_rows_flat($latestWatchedVideos, 'watched') ?>
+            </div>
+            <div class="dash-feed-sentinel dash-feed-sentinel--watched" aria-hidden="true"<?= $dashMoreWatched ? '' : ' hidden' ?>></div>
+            <p class="dash-feed-loading" id="dash-feed-loading-watched" hidden>載入中…</p>
+            <p class="dash-feed-end" id="dash-feed-end-watched"<?= $dashMoreWatched ? ' hidden' : '' ?>>已顯示全部</p>
+            <?php if ($dashMoreWatched): ?>
+                <p class="dash-load-more-row" data-dash-tab="watched" hidden>
+                    <button type="button" class="btn btn-outline dash-load-more-btn" data-dash-tab="watched">載入更多</button>
+                </p>
+            <?php endif; ?>
         <?php endif; ?>
     </div>
 
     <div id="panel-subscribed" class="video-panel" role="tabpanel" aria-labelledby="tab-subscribed"<?= $dashTabKey !== 'subscribed' ? ' hidden' : '' ?>>
-        <?php if (empty($subscribedChannels)): ?>
+        <?php if ($dashSubscribedTotal < 1): ?>
             <?php if ($filterCategoryId > 0): ?>
                 <p class="video-empty">此分類尚無已訂閱頻道。<a href="index.php?<?= http_build_query(['dash_tab' => $dashTabKey]) ?>">顯示全部</a> 或 <a href="index.php?page=channels">頻道管理</a></p>
             <?php else: ?>
                 <p class="video-empty">尚未加入任何頻道。<a href="index.php?page=channels">前往頻道管理</a></p>
             <?php endif; ?>
         <?php else: ?>
-            <div class="subscribed-grid">
-                <?php foreach ($subscribedChannels as $ch): ?>
-                    <?php
-                    $subN = (int)($ch['subscriber_count'] ?? 0);
-                    $vidN = (int)($ch['video_count'] ?? 0);
-                    if ($subN >= 100000000) {
-                        $subStr = round($subN / 100000000, 1) . ' 億';
-                    } elseif ($subN >= 10000) {
-                        $subStr = round($subN / 10000, 1) . ' 萬';
-                    } else {
-                        $subStr = number_format($subN);
-                    }
-                    $vidStr = $vidN >= 10000 ? round($vidN / 10000, 1) . ' 萬' : number_format($vidN);
-                    $yearsStr = '—';
-                    if (!empty($ch['published_at'])) {
-                        try {
-                            $pub = new DateTime($ch['published_at']);
-                            $y = $pub->diff(new DateTime())->y;
-                            $yearsStr = $y >= 1 ? ('創立 ' . $y . ' 年') : '未滿 1 年';
-                        } catch (Exception $e) {
-                            $yearsStr = '—';
-                        }
-                    }
-                    ?>
-                    <?php $isFav = !empty($ch['is_favorite']); ?>
-                    <article class="channel-card" data-channel-id="<?= (int)$ch['id'] ?>">
-                        <div class="channel-card-media">
-                            <?php if (!empty($ch['thumbnail_url'])): ?>
-                                <img class="channel-card-thumb" src="<?= htmlspecialchars($ch['thumbnail_url']) ?>" alt="">
-                            <?php else: ?>
-                                <span class="channel-card-thumb channel-card-thumb--empty" role="img" aria-label="無頻道圖片"></span>
-                            <?php endif; ?>
-                            <div class="channel-card-overlay">
-                                <div class="channel-card-overlay-main">
-                                    <div class="channel-card-stat">
-                                        <span class="channel-card-stat-label">訂閱</span>
-                                        <span class="channel-card-stat-value"><?= htmlspecialchars($subStr) ?></span>
-                                    </div>
-                                    <div class="channel-card-stat">
-                                        <span class="channel-card-stat-label">影片</span>
-                                        <span class="channel-card-stat-value"><?= htmlspecialchars($vidStr) ?></span>
-                                    </div>
-                                    <div class="channel-card-stat">
-                                        <span class="channel-card-stat-label">成立</span>
-                                        <span class="channel-card-stat-value"><?= htmlspecialchars($yearsStr) ?></span>
-                                    </div>
-                                </div>
-                                <div class="channel-card-overlay-actions">
-                                    <button type="button" class="channel-card-btn channel-card-btn--fav<?= $isFav ? ' channel-card-btn--on' : '' ?>"
-                                            data-channel-id="<?= (int)$ch['id'] ?>"
-                                            data-is-favorite="<?= $isFav ? '1' : '0' ?>"
-                                            title="我的最愛"><?= $isFav ? '⭐ 最愛' : '☆ 最愛' ?></button>
-                                    <button type="button" class="channel-card-btn channel-card-btn--del"
-                                            data-channel-id="<?= (int)$ch['id'] ?>"
-                                            title="從訂閱清單刪除">🗑 刪除</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="channel-card-body">
-                            <a class="channel-card-name" href="<?= htmlspecialchars($ch['url']) ?>" target="_blank" rel="noopener noreferrer">
-                                <?= htmlspecialchars($ch['name']) ?>
-                            </a>
-                            <?php if (!empty($ch['category_name'])): ?>
-                                <span class="channel-card-cat"><?= htmlspecialchars($ch['category_name']) ?></span>
-                            <?php endif; ?>
-                        </div>
-                    </article>
-                <?php endforeach; ?>
+            <div class="dash-feed-inner dash-feed-inner--subscribed"
+                 data-dash-feed="subscribed"
+                 data-dash-offset="<?= (int)$dashSubscribedLoaded ?>"
+                 data-dash-total="<?= (int)$dashSubscribedTotal ?>"
+                 data-dash-more="<?= $dashMoreSubscribed ? '1' : '0' ?>"
+                 data-dash-category="<?= (int)$filterCategoryId ?>">
+                <div class="subscribed-grid">
+                    <?php foreach ($subscribedChannels as $ch): ?>
+                        <?php render_dashboard_channel_card($ch); ?>
+                    <?php endforeach; ?>
+                </div>
             </div>
+            <div class="dash-feed-sentinel dash-feed-sentinel--subscribed" aria-hidden="true"<?= $dashMoreSubscribed ? '' : ' hidden' ?>></div>
+            <p class="dash-feed-loading" id="dash-feed-loading-subscribed" hidden>載入中…</p>
+            <p class="dash-feed-end" id="dash-feed-end-subscribed"<?= $dashMoreSubscribed ? ' hidden' : '' ?>>已顯示全部</p>
+            <?php if ($dashMoreSubscribed): ?>
+                <p class="dash-load-more-row" data-dash-tab="subscribed" hidden>
+                    <button type="button" class="btn btn-outline dash-load-more-btn" data-dash-tab="subscribed">載入更多</button>
+                </p>
+            <?php endif; ?>
         <?php endif; ?>
     </div>
 </div>
@@ -1444,26 +1349,12 @@ body {
             });
             return;
         }
-        var groups = panel.querySelectorAll('.video-channel-group');
-        if (groups.length) {
-            groups.forEach(function (g) {
-                var ch = txt(g.querySelector('.video-channel-title'));
-                var hitCh = q && norm(ch).indexOf(q) !== -1;
-                var anyVid = false;
-                g.querySelectorAll('.video').forEach(function (v) {
-                    var showV = !q || hitCh || norm(txt(v)).indexOf(q) !== -1;
-                    v.style.display = showV ? '' : 'none';
-                    if (showV) anyVid = true;
-                });
-                var showG = !q || hitCh || anyVid;
-                g.style.display = showG ? '' : 'none';
-            });
-        } else {
-            panel.querySelectorAll(':scope > .video').forEach(function (v) {
-                var show = !q || norm(txt(v)).indexOf(q) !== -1;
-                v.style.display = show ? '' : 'none';
-            });
-        }
+        var inner = panel.querySelector('.dash-feed-inner--videos');
+        if (!inner) return;
+        inner.querySelectorAll('.video').forEach(function (v) {
+            var show = !q || norm(txt(v)).indexOf(q) !== -1;
+            v.style.display = show ? '' : 'none';
+        });
     }
 
     function applyDashVideoSearch() {
@@ -1516,6 +1407,116 @@ body {
         syncCategoryLinksDashTab(active.getAttribute('data-panel'));
     }
     applyDashVideoSearch();
+    window.dashApplySearch = applyDashVideoSearch;
+})();
+</script>
+
+<script>window.YT_DASH_AUTO_LOAD = <?= (int)$dashAutoLoadPref ?>;</script>
+<script>
+(function () {
+    var feedApi = 'scripts/dashboard_feed_api.php';
+    var searchInput = document.getElementById('dash-video-search');
+    var loading = {};
+
+    function getAutoLoad() {
+        var v = window.YT_DASH_AUTO_LOAD;
+        if (v === undefined || v === null) return true;
+        return String(v) !== '0' && v !== 0;
+    }
+
+    function searchBlocksFeed() {
+        return searchInput && searchInput.value.trim() !== '';
+    }
+
+    function syncAutoLoadUi() {
+        var on = getAutoLoad();
+        document.querySelectorAll('.dash-feed-sentinel').forEach(function (s) {
+            if (s.hasAttribute('hidden')) return;
+            s.style.display = on ? '' : 'none';
+        });
+        document.querySelectorAll('.dash-load-more-row').forEach(function (row) {
+            var tab = row.getAttribute('data-dash-tab');
+            var panel = tab ? document.getElementById('panel-' + tab) : null;
+            var inner = panel && panel.querySelector('.dash-feed-inner');
+            var more = inner && inner.getAttribute('data-dash-more') === '1';
+            var show = !on && more;
+            row.hidden = !show;
+        });
+    }
+
+    syncAutoLoadUi();
+
+    function runFetch(tab, sentinel) {
+        if (loading[tab]) return;
+        var panel = document.getElementById('panel-' + tab);
+        if (!panel || panel.hidden) return;
+        var inner = panel.querySelector('.dash-feed-inner');
+        if (!inner || inner.getAttribute('data-dash-more') !== '1') return;
+        if (searchBlocksFeed()) return;
+
+        loading[tab] = true;
+        var offset = parseInt(inner.getAttribute('data-dash-offset'), 10) || 0;
+        var cat = parseInt(inner.getAttribute('data-dash-category'), 10) || 0;
+        var loadEl = document.getElementById('dash-feed-loading-' + tab);
+        var endEl = document.getElementById('dash-feed-end-' + tab);
+        if (loadEl) loadEl.hidden = false;
+
+        var url = feedApi + '?tab=' + encodeURIComponent(tab) + '&offset=' + offset + '&category_id=' + cat;
+        fetch(url, { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (loadEl) loadEl.hidden = true;
+                loading[tab] = false;
+                if (!data || !data.ok) return;
+
+                if (data.html) {
+                    if (tab === 'subscribed') {
+                        var grid = inner.querySelector('.subscribed-grid');
+                        if (grid) grid.insertAdjacentHTML('beforeend', data.html);
+                    } else {
+                        inner.insertAdjacentHTML('beforeend', data.html);
+                    }
+                }
+                inner.setAttribute('data-dash-offset', String(data.next_offset != null ? data.next_offset : offset));
+                inner.setAttribute('data-dash-more', data.has_more ? '1' : '0');
+                if (!data.has_more) {
+                    if (sentinel) sentinel.hidden = true;
+                    if (endEl) endEl.hidden = false;
+                }
+                syncAutoLoadUi();
+                if (window.dashApplySearch) window.dashApplySearch();
+            })
+            .catch(function () {
+                if (loadEl) loadEl.hidden = true;
+                loading[tab] = false;
+            });
+    }
+
+    document.querySelectorAll('.dash-feed-sentinel').forEach(function (sentinel) {
+        var io = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                if (!entry.isIntersecting) return;
+                if (!getAutoLoad()) return;
+                var panel = sentinel.closest('.video-panel');
+                if (!panel || panel.hidden) return;
+                var inner = panel.querySelector('.dash-feed-inner');
+                if (!inner || inner.getAttribute('data-dash-more') !== '1') return;
+                var tab = inner.getAttribute('data-dash-feed');
+                if (!tab) return;
+                runFetch(tab, sentinel);
+            });
+        }, { root: null, rootMargin: '0px 0px 320px 0px', threshold: 0 });
+        io.observe(sentinel);
+    });
+
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest('.dash-load-more-btn');
+        if (!b) return;
+        var tab = b.getAttribute('data-dash-tab');
+        if (!tab) return;
+        var sentinel = document.querySelector('.dash-feed-sentinel--' + tab);
+        runFetch(tab, sentinel);
+    });
 })();
 </script>
 
@@ -1597,12 +1598,9 @@ body {
                 return;
             }
             var row = btn.closest('.video');
-            var group = row ? row.closest('.video-channel-group') : null;
             if (row) row.remove();
-            if (group && !group.querySelector('.video')) {
-                group.remove();
-            }
-            if (panel && !panel.querySelector('.video')) {
+            var inner = panel.querySelector('.dash-feed-inner--videos');
+            if (panel && inner && !inner.querySelector('.video')) {
                 window.location.reload();
             }
         }).catch(function () {
