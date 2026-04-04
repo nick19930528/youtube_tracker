@@ -20,6 +20,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: index.php?page=account&notice=dash_pref_err');
         exit;
     }
+    if (isset($_POST['save_fetch_prefs'])) {
+        $days = isset($_POST['fetch_max_age_days']) ? (int) $_POST['fetch_max_age_days'] : 7;
+        $m = isset($_POST['fetch_max_per_channel']) ? (int) $_POST['fetch_max_per_channel'] : 1;
+        if ($ctrl->updateFetchPrefs($uid, $days, $m)) {
+            header('Location: index.php?page=account&notice=fetch_pref_ok');
+            exit;
+        }
+        header('Location: index.php?page=account&notice=fetch_pref_err');
+        exit;
+    }
     if (isset($_POST['save_profile'])) {
         $name = isset($_POST['name']) ? $_POST['name'] : '';
         $gender = isset($_POST['gender']) ? $_POST['gender'] : '';
@@ -98,12 +108,18 @@ if ($notice === 'profile_ok') {
     $noticeText = '已更新首頁載入方式。';
 } elseif ($notice === 'dash_pref_err') {
     $noticeText = '無法更新首頁載入方式，請稍後再試。';
+} elseif ($notice === 'fetch_pref_ok') {
+    $noticeText = '已更新抓新影片設定。';
+} elseif ($notice === 'fetch_pref_err') {
+    $noticeText = '無法更新抓新影片設定，請稍後再試。';
 }
 
 $selGender = array_key_exists('gender', $profile) && $profile['gender'] !== null && $profile['gender'] !== ''
     ? $profile['gender']
     : '';
 $dashAutoLoad = (isset($profile['dash_auto_load']) && (int)$profile['dash_auto_load'] === 0) ? 0 : 1;
+$fetchMaxAgeDays = isset($profile['fetch_max_age_days']) ? (int) $profile['fetch_max_age_days'] : 7;
+$fetchMaxPerChannel = isset($profile['fetch_max_per_channel']) ? (int) $profile['fetch_max_per_channel'] : 1;
 ?>
 <!DOCTYPE html>
 <html lang="zh-Hant">
@@ -129,10 +145,11 @@ $dashAutoLoad = (isset($profile['dash_auto_load']) && (int)$profile['dash_auto_l
         .row { margin-bottom: 12px; font-size: 14px; }
         .row strong { display: inline-block; min-width: 100px; color: #64748b; font-weight: 600; }
         label { display: block; margin-bottom: 6px; font-size: 13px; color: #475569; }
-        input[type="text"], input[type="password"], select {
+        input[type="text"], input[type="password"], input[type="number"], select {
             width: 100%; max-width: 360px; box-sizing: border-box; padding: 9px 11px;
             border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px;
         }
+        input[type="number"].input-narrow { max-width: 120px; }
         button[type="submit"] {
             margin-top: 12px; padding: 10px 18px; background: #0077cc; color: #fff; border: none;
             border-radius: 8px; font-size: 14px; cursor: pointer;
@@ -158,7 +175,7 @@ $dashAutoLoad = (isset($profile['dash_auto_load']) && (int)$profile['dash_auto_l
     <p class="sub">管理個人資料、密碼與查看訂閱方案</p>
 
     <?php if ($noticeText !== ''): ?>
-        <div class="alert <?= (strpos($notice, 'pwd:') === 0 || $notice === 'profile_err' || $notice === 'dash_pref_err') ? 'alert--err' : 'alert--ok' ?>">
+        <div class="alert <?= (strpos($notice, 'pwd:') === 0 || $notice === 'profile_err' || $notice === 'dash_pref_err' || $notice === 'fetch_pref_err') ? 'alert--err' : 'alert--ok' ?>">
             <?= htmlspecialchars($noticeText) ?>
         </div>
     <?php endif; ?>
@@ -210,6 +227,22 @@ $dashAutoLoad = (isset($profile['dash_auto_load']) && (int)$profile['dash_auto_l
             <button type="submit">儲存載入方式</button>
         </form>
         <p class="hint" style="margin-bottom: 0;">變更後重新整理首頁即生效；若資料庫尚未執行 migration <code>007_users_dash_auto_load.sql</code>，請先由管理員新增欄位。</p>
+    </div>
+
+    <div class="card">
+        <h2>抓新影片（RSS）</h2>
+        <p class="muted" style="margin-top: 0;">執行「📡 抓新影片」時，依下列設定從各頻道 RSS 篩選；僅會加入<strong>待看</strong>清單中尚不存在的影片，且仍會略過短於 3 分鐘的影片。</p>
+        <form method="post" action="index.php?page=account">
+            <input type="hidden" name="save_fetch_prefs" value="1">
+            <label for="fetch_max_age_days">最近幾天內發布</label>
+            <input type="number" class="input-narrow" id="fetch_max_age_days" name="fetch_max_age_days" min="1" max="730" required value="<?= (int) $fetchMaxAgeDays ?>">
+            <p class="hint">只處理此天數內發布的影片（預設 7）。</p>
+            <label for="fetch_max_per_channel" style="margin-top: 14px;">每個頻道每次最多新增</label>
+            <input type="number" class="input-narrow" id="fetch_max_per_channel" name="fetch_max_per_channel" min="1" max="100" required value="<?= (int) $fetchMaxPerChannel ?>">
+            <p class="hint">單次執行時，每個頻道最多成功加入幾支新影片（預設 1）。</p>
+            <button type="submit">儲存抓新影片設定</button>
+        </form>
+        <p class="hint" style="margin-bottom: 0;">若儲存失敗，請確認已執行 migration <code>008_users_fetch_prefs.sql</code>。</p>
     </div>
 
     <div class="card">

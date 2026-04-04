@@ -109,6 +109,8 @@ CREATE TABLE `users` (
   `name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `gender` varchar(16) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'm / f / other / 留空',
   `dash_auto_load` tinyint(1) NOT NULL DEFAULT 1 COMMENT '首頁 1=捲動分頁 0=一次載入全部',
+  `fetch_max_age_days` smallint UNSIGNED NOT NULL DEFAULT 7 COMMENT '抓新影片 RSS 最近幾天內',
+  `fetch_max_per_channel` smallint UNSIGNED NOT NULL DEFAULT 1 COMMENT '每頻道每次最多新增幾支',
   `email_verified_at` datetime DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()

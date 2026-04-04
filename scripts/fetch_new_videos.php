@@ -19,6 +19,22 @@ $pdo = (new Database())->getConnection();
 $videoModel = new Video($pdo, $uid);
 $channelModel = new Channel($pdo, $uid);
 
+$fetchDays = 7;
+$fetchMaxPerChannel = 1;
+try {
+    $stmt = $pdo->prepare('SELECT COALESCE(fetch_max_age_days, 7) AS d, COALESCE(fetch_max_per_channel, 1) AS m FROM users WHERE id = ? LIMIT 1');
+    $stmt->execute([$uid]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($row) {
+        $fetchDays = max(1, min(730, (int) $row['d']));
+        $fetchMaxPerChannel = max(1, min(100, (int) $row['m']));
+    }
+} catch (Throwable $e) {
+    // 未執行 migration 時沿用預設 7 天、每頻道 1 支
+}
+
+echo "⚙️ 設定：最近 {$fetchDays} 天內發布、每頻道最多新增 {$fetchMaxPerChannel} 支\n\n";
+
 $channels = $channelModel->getAll();
 
 foreach ($channels as $channel) {
@@ -65,7 +81,14 @@ foreach ($channels as $channel) {
         continue;
     }
 
+    $addedThisChannel = 0;
+    $cutoffTs = strtotime('-' . $fetchDays . ' days');
+
     foreach ($xml->entry as $entry) {
+        if ($addedThisChannel >= $fetchMaxPerChannel) {
+            break;
+        }
+
         $title = (string)$entry->title;
         $url = (string)$entry->link['href'];
 
@@ -86,7 +109,7 @@ foreach ($channels as $channel) {
             $ts = strtotime((string)$entry->published);
             $publishedAt = $ts !== false ? date('Y-m-d H:i:s', $ts) : null;
         }
-        if ($ts < strtotime('-7 days')) {
+        if ($ts < $cutoffTs) {
             continue;
         }
 
@@ -135,6 +158,7 @@ foreach ($channels as $channel) {
 
         if ($videoModel->add($title, $url, $summary, $publishedAt, $viewCount, $likeCount, $commentCount, $thumbnailUrl, $channelName, $duration)) {
             echo "✅ 新增影片：$title\n";
+            $addedThisChannel++;
         }
     }
 }

@@ -11,10 +11,22 @@ class AccountController
 
     public function getProfile($userId)
     {
-        $stmt = $this->pdo->prepare('SELECT id, email, name, gender, COALESCE(dash_auto_load, 1) AS dash_auto_load, email_verified_at, created_at FROM users WHERE id = ? LIMIT 1');
-        $stmt->execute(array($userId));
+        try {
+            $stmt = $this->pdo->prepare('SELECT id, email, name, gender, COALESCE(dash_auto_load, 1) AS dash_auto_load, COALESCE(fetch_max_age_days, 7) AS fetch_max_age_days, COALESCE(fetch_max_per_channel, 1) AS fetch_max_per_channel, email_verified_at, created_at FROM users WHERE id = ? LIMIT 1');
+            $stmt->execute(array($userId));
+        } catch (Throwable $e) {
+            $stmt = $this->pdo->prepare('SELECT id, email, name, gender, COALESCE(dash_auto_load, 1) AS dash_auto_load, email_verified_at, created_at FROM users WHERE id = ? LIMIT 1');
+            $stmt->execute(array($userId));
+        }
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $row ? $row : null;
+        if (!$row) {
+            return null;
+        }
+        if (!array_key_exists('fetch_max_age_days', $row)) {
+            $row['fetch_max_age_days'] = 7;
+            $row['fetch_max_per_channel'] = 1;
+        }
+        return $row;
     }
 
     /**
@@ -53,6 +65,22 @@ class AccountController
         $v = $enabled ? 1 : 0;
         $stmt = $this->pdo->prepare('UPDATE users SET dash_auto_load = ? WHERE id = ?');
         return (bool)$stmt->execute(array($v, $userId));
+    }
+
+    /**
+     * @param int $maxAgeDays 1–730
+     * @param int $maxPerChannel 1–100
+     */
+    public function updateFetchPrefs($userId, $maxAgeDays, $maxPerChannel)
+    {
+        $d = max(1, min(730, (int) $maxAgeDays));
+        $m = max(1, min(100, (int) $maxPerChannel));
+        try {
+            $stmt = $this->pdo->prepare('UPDATE users SET fetch_max_age_days = ?, fetch_max_per_channel = ? WHERE id = ?');
+            return (bool) $stmt->execute([$d, $m, $userId]);
+        } catch (Throwable $e) {
+            return false;
+        }
     }
 
     /**
