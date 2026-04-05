@@ -24,6 +24,9 @@ $pdo = (new Database())->getConnection();
 $uid = auth_user_id();
 $currentAuthUser = auth_user();
 
+require_once __DIR__ . '/models/Video.php';
+(new Video($pdo, $uid))->trimBothSidesToPlanLimits();
+
 /* =========================
    🔀 路由區（非首頁）
 ========================= */

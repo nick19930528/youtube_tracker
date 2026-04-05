@@ -95,7 +95,6 @@ class VideoController {
     }
 
     public function markWatched($id) {
-        $stmt = $this->pdo->prepare("UPDATE videos SET is_watched = 1, watched_at = NOW() WHERE id = ? AND user_id = ?");
-        return $stmt->execute([$id, $this->userId]);
+        return $this->video->markWatched($id);
     }
 }
