@@ -20,5 +20,12 @@ services:
       DB_NAME: ${DB_NAME:-youtube_tracker}
       DB_USER: ${DB_USER:-appuser}
       DB_PASSWORD: ${DB_PASSWORD:-123456}
+      APP_BASE_URL: ${APP_BASE_URL:-https://tubelog.xyz}
+      MAIL_SMTP_HOST: ${MAIL_SMTP_HOST:-smtp.gmail.com}
+      MAIL_SMTP_PORT: ${MAIL_SMTP_PORT:-587}
+      MAIL_SMTP_USER: ${MAIL_SMTP_USER:-anytime333b1@gmail.com}
+      MAIL_SMTP_PASSWORD: ${MAIL_SMTP_PASSWORD:-zqbgtduxbeymhbuz}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-anytime333b1@gmail.com}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-YouTube Tracker}
     volumes:
       - .:/var/www/html

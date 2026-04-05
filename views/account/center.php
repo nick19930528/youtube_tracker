@@ -54,6 +54,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: index.php?page=account&notice=' . rawurlencode('pwd:' . $r));
         exit;
     }
+    if (isset($_POST['resend_verification'])) {
+        $stmt = $pdo->prepare('SELECT email, name, email_verified_at FROM users WHERE id = ? LIMIT 1');
+        $stmt->execute(array($uid));
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row && empty($row['email_verified_at'])) {
+            $ok = auth_email_issue_and_send($pdo, $uid, $row['email'], $row['name']);
+            header('Location: index.php?page=account&notice=' . ($ok ? 'verify_resent_ok' : 'verify_resent_fail'));
+        } else {
+            header('Location: index.php?page=account&notice=verify_resent_skip');
+        }
+        exit;
+    }
 }
 
 $profile = $ctrl->getProfile($uid);
@@ -102,6 +114,12 @@ if ($notice === 'profile_ok') {
     $noticeText = '已更新抓新影片設定。';
 } elseif ($notice === 'fetch_pref_err') {
     $noticeText = '無法更新抓新影片設定，請稍後再試。';
+} elseif ($notice === 'verify_resent_ok') {
+    $noticeText = '已重新寄出驗證信，請至信箱點擊連結。';
+} elseif ($notice === 'verify_resent_fail') {
+    $noticeText = '無法寄出驗證信，請確認郵件設定（環境變數）或稍後再試。';
+} elseif ($notice === 'verify_resent_skip') {
+    $noticeText = '此帳號已驗證或無需重送。';
 }
 
 $selGender = array_key_exists('gender', $profile) && $profile['gender'] !== null && $profile['gender'] !== ''
@@ -349,7 +367,7 @@ function account_center_plan_quota(array $p)
     </div>
 
     <?php if ($noticeText !== ''): ?>
-        <div class="alert <?= (strpos($notice, 'pwd:') === 0 || $notice === 'profile_err' || $notice === 'dash_pref_err' || $notice === 'fetch_pref_err') ? 'alert--err' : 'alert--ok' ?>">
+        <div class="alert <?= (strpos($notice, 'pwd:') === 0 || $notice === 'profile_err' || $notice === 'dash_pref_err' || $notice === 'fetch_pref_err' || $notice === 'verify_resent_fail') ? 'alert--err' : 'alert--ok' ?>">
             <?= htmlspecialchars($noticeText) ?>
         </div>
     <?php endif; ?>
@@ -362,6 +380,11 @@ function account_center_plan_quota(array $p)
             <div class="row"><strong>Email 驗證</strong> <?= htmlspecialchars($profile['email_verified_at']) ?></div>
         <?php else: ?>
             <div class="row"><strong>Email 驗證</strong> <span class="muted">尚未驗證</span></div>
+            <form method="post" action="index.php?page=account" style="margin-top: 12px;">
+                <input type="hidden" name="resend_verification" value="1">
+                <button type="submit" class="btn-upgrade-sm" style="margin-top:0;">重送驗證信</button>
+            </form>
+            <p class="hint" style="margin-top: 8px;">Gmail 請使用應用程式密碼作為 SMTP 密碼；公開網址請設定 <code>APP_BASE_URL</code> 讓連結正確。</p>
         <?php endif; ?>
 
         <form method="post" action="index.php?page=account" style="margin-top: 20px;">

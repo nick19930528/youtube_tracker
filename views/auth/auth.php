@@ -3,6 +3,9 @@ require_once __DIR__ . '/../../config/bootstrap.php';
 
 $error = '';
 $redirect = isset($_POST['redirect']) ? (string)$_POST['redirect'] : (isset($_GET['redirect']) ? (string)$_GET['redirect'] : 'index.php');
+$notice = isset($_GET['notice']) ? (string)$_GET['notice'] : '';
+$authNoticeOk = ($notice === 'verify_ok');
+$authNoticeErr = ($notice === 'verify_fail');
 
 $authPage = (isset($_GET['page']) && $_GET['page'] === 'register') ? 'register' : 'login';
 
@@ -203,6 +206,19 @@ $pageTitle = $authPage === 'register' ? '註冊' : '登入';
             80% { transform: translateX(2px); }
         }
         .auth-alert span:first-child { flex-shrink: 0; }
+        .auth-success {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 14px;
+            margin-bottom: 16px;
+            border-radius: 12px;
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
         label {
             display: block;
             margin-bottom: 6px;
@@ -303,6 +319,18 @@ $pageTitle = $authPage === 'register' ? '註冊' : '登入';
                     aria-controls="panel-register"
                 >註冊</a>
             </nav>
+
+            <?php if ($authNoticeOk): ?>
+                <div class="auth-success" role="status">
+                    <span aria-hidden="true">✅</span>
+                    <span>Email 驗證完成，請登入。</span>
+                </div>
+            <?php elseif ($authNoticeErr): ?>
+                <div class="auth-alert" role="alert">
+                    <span aria-hidden="true">⚠️</span>
+                    <span>驗證連結無效或已過期。請登入後至會員中心重送驗證信。</span>
+                </div>
+            <?php endif; ?>
 
             <?php if ($error !== ''): ?>
                 <div class="auth-alert" role="alert">

@@ -3,6 +3,22 @@ require_once __DIR__ . '/config/bootstrap.php';
 
 $page = $_GET['page'] ?? 'home';
 
+if ($page === 'verify_email') {
+    $pdo = (new Database())->getConnection();
+    $token = isset($_GET['token']) ? (string)$_GET['token'] : '';
+    $ok = auth_verify_email_by_token($pdo, $token);
+    if ($ok) {
+        if (auth_check()) {
+            header('Location: index.php?notice=verify_ok');
+        } else {
+            header('Location: index.php?page=login&notice=verify_ok');
+        }
+    } else {
+        header('Location: index.php?page=login&notice=verify_fail');
+    }
+    exit;
+}
+
 if ($page === 'logout') {
     auth_logout();
     header('Location: index.php?page=login');
@@ -23,6 +39,17 @@ auth_require_login();
 $pdo = (new Database())->getConnection();
 $uid = auth_user_id();
 $currentAuthUser = auth_user();
+
+$emailVerifyFlash = null;
+if ($page === 'home' && auth_check()) {
+    if (!empty($_SESSION['email_verification_sent'])) {
+        unset($_SESSION['email_verification_sent']);
+        $emailVerifyFlash = 'sent';
+    } elseif (!empty($_SESSION['email_verification_send_failed'])) {
+        unset($_SESSION['email_verification_send_failed']);
+        $emailVerifyFlash = 'fail';
+    }
+}
 
 require_once __DIR__ . '/models/Video.php';
 (new Video($pdo, $uid))->trimBothSidesToPlanLimits();
@@ -108,7 +135,7 @@ if ($page !== 'home') {
     exit;
 }
 
-$allowedQuickNotices = ['channel_ok', 'channel_err', 'channel_limit', 'video_ok', 'video_err'];
+$allowedQuickNotices = ['channel_ok', 'channel_err', 'channel_limit', 'video_ok', 'video_err', 'verify_ok'];
 $quickNotice = isset($_GET['notice']) && in_array($_GET['notice'], $allowedQuickNotices, true)
     ? $_GET['notice']
     : null;
@@ -1408,6 +1435,14 @@ body {
 <?php if ($quotaBannerText !== ''): ?>
 <p style="font-size:13px;color:#64748b;margin:0 0 16px;"><?= htmlspecialchars($quotaBannerText) ?></p>
 <?php endif; ?>
+<?php if ($emailVerifyFlash === 'sent'): ?>
+<p class="quick-notice quick-notice--ok" style="margin:0 0 16px;">已寄出驗證信，請至信箱點擊連結完成驗證。</p>
+<?php elseif ($emailVerifyFlash === 'fail'): ?>
+<p class="quick-notice quick-notice--err" style="margin:0 0 16px;">無法寄出驗證信，請確認郵件環境變數或至會員中心重送。</p>
+<?php endif; ?>
+<?php if (auth_check() && !auth_is_email_verified()): ?>
+<p class="quick-notice quick-notice--err" style="margin:0 0 16px;">📧 信箱尚未驗證。請至註冊 Email 收信並點擊信內連結；若未收到可至 <a href="index.php?page=account" style="color:#991b1b;font-weight:600;">會員中心</a> 重送驗證信。</p>
+<?php endif; ?>
 
 <div class="dash-top-row">
 <!-- KPI（左側直向） -->
@@ -1439,12 +1474,13 @@ body {
             'channel_limit' => '',
             'video_ok' => '✅ 影片已加入已看清單。',
             'video_err' => '⚠️ 無法新增影片（連結無效、影片已存在或無法取得影片資訊）。',
+            'verify_ok' => '✅ Email 已驗證完成。',
         ];
         if ($quickNotice === 'channel_limit') {
             $mc = plan_limits_max_channels($pdo, $uid);
             $noticeTexts['channel_limit'] = '⚠️ 您目前方案最多 ' . (int)$mc . ' 個頻道，請刪除部分頻道或升級方案。';
         }
-        $noticeOk = in_array($quickNotice, ['channel_ok', 'video_ok'], true);
+        $noticeOk = in_array($quickNotice, ['channel_ok', 'video_ok', 'verify_ok'], true);
         ?>
         <p class="quick-notice <?= $noticeOk ? 'quick-notice--ok' : 'quick-notice--err' ?>">
             <?= htmlspecialchars($noticeTexts[$quickNotice] ?? '') ?>

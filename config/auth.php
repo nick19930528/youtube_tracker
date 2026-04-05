@@ -3,6 +3,7 @@
  * 會員：Session、登入、註冊、登出
  * 相容 PHP 5.6+（無 7.1 的可空回傳型別、無 7.3 的 session 陣列參數）
  */
+require_once __DIR__ . '/mail.php';
 function auth_bootstrap_session()
 {
     if (function_exists('session_status')) {
@@ -68,7 +69,7 @@ function auth_login(PDO $pdo, $email, $password)
     if ($email === '' || $password === '') {
         return false;
     }
-    $stmt = $pdo->prepare('SELECT id, email, name, password_hash, COALESCE(dash_auto_load, 1) AS dash_auto_load FROM users WHERE email = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT id, email, name, password_hash, COALESCE(dash_auto_load, 1) AS dash_auto_load, email_verified_at FROM users WHERE email = ? LIMIT 1');
     $stmt->execute(array($email));
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$row || !password_verify($password, $row['password_hash'])) {
@@ -78,6 +79,8 @@ function auth_login(PDO $pdo, $email, $password)
     $_SESSION['user_email'] = $row['email'];
     $_SESSION['user_name'] = $row['name'];
     $_SESSION['dash_auto_load'] = isset($row['dash_auto_load']) ? ((int)$row['dash_auto_load'] ? 1 : 0) : 1;
+    $ev = isset($row['email_verified_at']) && $row['email_verified_at'] !== null && $row['email_verified_at'] !== '';
+    $_SESSION['email_verified'] = $ev ? 1 : 0;
     return true;
 }
 
@@ -147,5 +150,90 @@ function auth_register(PDO $pdo, $name, $email, $gender, $password, $password2)
     $_SESSION['user_email'] = $email;
     $_SESSION['user_name'] = $name;
     $_SESSION['dash_auto_load'] = 1;
+    $_SESSION['email_verified'] = 0;
+
+    if (auth_email_issue_and_send($pdo, $uid, $email, $name)) {
+        $_SESSION['email_verification_sent'] = 1;
+    } else {
+        $_SESSION['email_verification_send_failed'] = 1;
+    }
+
+    return true;
+}
+
+function auth_is_email_verified()
+{
+    if (!isset($_SESSION['email_verified'])) {
+        return true;
+    }
+    return (int)$_SESSION['email_verified'] === 1;
+}
+
+/**
+ * @return bool 是否成功寄出（權杖已寫入 DB 時仍可重送）
+ */
+function auth_email_issue_and_send(PDO $pdo, $userId, $email, $name)
+{
+    $userId = (int)$userId;
+    if ($userId < 1) {
+        return false;
+    }
+    try {
+        if (function_exists('random_bytes')) {
+            $raw = random_bytes(32);
+        } else {
+            $raw = openssl_random_pseudo_bytes(32);
+        }
+        $token = bin2hex($raw);
+    } catch (Exception $e) {
+        return false;
+    }
+
+    try {
+        $stmt = $pdo->prepare('UPDATE users SET email_verification_token = ?, email_verification_expires_at = DATE_ADD(NOW(), INTERVAL 48 HOUR) WHERE id = ? AND email_verified_at IS NULL');
+        $stmt->execute(array($token, $userId));
+        if ($stmt->rowCount() < 1) {
+            return false;
+        }
+    } catch (Exception $e) {
+        return false;
+    }
+
+    return mail_send_verification_email($email, $name, $token);
+}
+
+/**
+ * @return bool
+ */
+function auth_verify_email_by_token(PDO $pdo, $token)
+{
+    $token = trim((string)$token);
+    if (strlen($token) !== 64 || !ctype_xdigit($token)) {
+        return false;
+    }
+
+    try {
+        $stmt = $pdo->prepare('SELECT id FROM users WHERE email_verification_token = ? AND email_verification_expires_at > NOW() LIMIT 1');
+        $stmt->execute(array($token));
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        return false;
+    }
+    if (!$row) {
+        return false;
+    }
+    $uid = (int)$row['id'];
+
+    try {
+        $stmt = $pdo->prepare('UPDATE users SET email_verified_at = NOW(), email_verification_token = NULL, email_verification_expires_at = NULL WHERE id = ? LIMIT 1');
+        $stmt->execute(array($uid));
+    } catch (Exception $e) {
+        return false;
+    }
+
+    if (auth_check() && (int)auth_user_id() === $uid) {
+        $_SESSION['email_verified'] = 1;
+    }
+
     return true;
 }
