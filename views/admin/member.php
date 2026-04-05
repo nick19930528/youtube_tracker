@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../config/bootstrap.php';
 auth_require_admin();
 
+require_once __DIR__ . '/../../config/subscription_sync.php';
 require_once __DIR__ . '/../../controllers/AccountController.php';
 require_once __DIR__ . '/../../controllers/AdminController.php';
 
@@ -41,19 +42,6 @@ function admin_member_gender_label($g)
     }
 
     return '未填寫';
-}
-
-function admin_member_status_label($s)
-{
-    $map = array(
-        'trialing' => '試用中',
-        'active' => '使用中',
-        'past_due' => '付款逾期',
-        'canceled' => '已取消',
-        'expired' => '已到期',
-    );
-
-    return isset($map[$s]) ? $map[$s] : $s;
 }
 
 function admin_member_billing_label($iv)
@@ -162,7 +150,7 @@ function admin_member_billing_label($iv)
             <p><strong>目前有效（列表優先）</strong>：
                 <?= htmlspecialchars($subCurrent['plan_name'], ENT_QUOTES, 'UTF-8') ?>
                 （<?= htmlspecialchars($subCurrent['slug'], ENT_QUOTES, 'UTF-8') ?>）
-                — <?= htmlspecialchars(admin_member_status_label($subCurrent['status']), ENT_QUOTES, 'UTF-8') ?>
+                — <?= htmlspecialchars(subscription_status_label_member($subCurrent['status'], isset($subCurrent['slug']) ? $subCurrent['slug'] : ''), ENT_QUOTES, 'UTF-8') ?>
             </p>
         <?php else: ?>
             <p>無訂閱紀錄。</p>
@@ -185,7 +173,7 @@ function admin_member_billing_label($iv)
                         <tr>
                             <td><?= (int) $s['id'] ?></td>
                             <td><?= htmlspecialchars($s['plan_name'], ENT_QUOTES, 'UTF-8') ?> <span class="muted">(<?= htmlspecialchars($s['slug'], ENT_QUOTES, 'UTF-8') ?>)</span></td>
-                            <td><?= htmlspecialchars(admin_member_status_label($s['status']), ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><?= htmlspecialchars(subscription_status_label_member($s['status'], isset($s['slug']) ? $s['slug'] : ''), ENT_QUOTES, 'UTF-8') ?></td>
                             <td><?= htmlspecialchars(admin_member_billing_label($s['billing_interval'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
                             <td>
                                 <?php if (!empty($s['current_period_start']) || !empty($s['current_period_end'])): ?>

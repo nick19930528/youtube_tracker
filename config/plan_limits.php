@@ -2,6 +2,7 @@
 /**
  * 各方案額度：優先讀取 subscription_plans.quota_*；無欄位或皆為 0 時回退常數（相容舊庫）
  */
+require_once __DIR__ . '/subscription_sync.php';
 define('PLAN_FREE_MAX_CHANNELS', 200);
 define('PLAN_FREE_MAX_VIDEOS_PER_LIST', 10000);
 
@@ -13,6 +14,8 @@ define('PLAN_GO_MAX_VIDEOS_PER_LIST', 500);
  */
 function plan_limits_get_active_slug(PDO $pdo, $userId)
 {
+    subscription_sync_expired_for_user($pdo, $userId);
+
     $stmt = $pdo->prepare("
         SELECT p.slug
         FROM subscriptions s

@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../config/subscription_sync.php';
+
 class AccountController
 {
     private $pdo;
@@ -34,6 +36,8 @@ class AccountController
      */
     public function getSubscriptionWithPlan($userId)
     {
+        subscription_sync_expired_for_user($this->pdo, $userId);
+
         $stmt = $this->pdo->prepare("
             SELECT s.id, s.status, s.current_period_start, s.current_period_end, s.cancel_at_period_end,
                    p.name AS plan_name, p.slug, p.price_cents, p.currency, p.billing_interval
@@ -46,6 +50,29 @@ class AccountController
         $stmt->execute(array($userId));
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ? $row : null;
+    }
+
+    /**
+     * 歷史訂閱紀錄（新到舊，含目前與過往方案）
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function listSubscriptionHistory($userId)
+    {
+        subscription_sync_expired_for_user($this->pdo, $userId);
+
+        $stmt = $this->pdo->prepare("
+            SELECT s.id, s.status, s.current_period_start, s.current_period_end, s.cancel_at_period_end,
+                   s.created_at, s.updated_at,
+                   p.name AS plan_name, p.slug, p.price_cents, p.currency, p.billing_interval
+            FROM subscriptions s
+            INNER JOIN subscription_plans p ON p.id = s.plan_id
+            WHERE s.user_id = ?
+            ORDER BY s.id DESC
+        ");
+        $stmt->execute(array($userId));
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function updateProfile($userId, $name, $gender)

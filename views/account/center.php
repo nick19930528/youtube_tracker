@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../config/bootstrap.php';
 auth_require_login();
+require_once __DIR__ . '/../../config/subscription_sync.php';
 require_once __DIR__ . '/../../controllers/AccountController.php';
 
 $pdo = (new Database())->getConnection();
@@ -62,6 +63,7 @@ if (!$profile) {
 }
 
 $sub = $ctrl->getSubscriptionWithPlan($uid);
+$subHistory = $ctrl->listSubscriptionHistory($uid);
 
 function account_gender_label($g)
 {
@@ -81,18 +83,6 @@ function account_billing_label($iv)
 {
     $map = array('free' => '免費', 'month' => '月繳', 'year' => '年繳');
     return isset($map[$iv]) ? $map[$iv] : $iv;
-}
-
-function account_status_label($s)
-{
-    $map = array(
-        'trialing' => '試用中',
-        'active' => '使用中',
-        'past_due' => '付款逾期',
-        'canceled' => '已取消',
-        'expired' => '已到期',
-    );
-    return isset($map[$s]) ? $map[$s] : $s;
 }
 
 $noticeText = '';
@@ -337,6 +327,11 @@ function account_center_plan_quota(array $p)
         }
         .btn-upgrade-sm:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(37, 99, 235, 0.4); }
         .subscription-detail { margin-top: 8px; padding-top: 16px; border-top: 1px dashed #e2e8f0; }
+        .subscription-history-wrap { margin-top: 20px; padding-top: 16px; border-top: 1px dashed #e2e8f0; }
+        .subscription-history-wrap .plan-table { font-size: 13px; }
+        .subscription-history-wrap .plan-table th,
+        .subscription-history-wrap .plan-table td { padding: 10px 12px; }
+        .subscription-history-wrap tr.sub-history-row--current td { background: #eff6ff; }
     </style>
 </head>
 <body>
@@ -497,8 +492,15 @@ function account_center_plan_quota(array $p)
         <?php if ($sub): ?>
             <div class="subscription-detail">
                 <p style="margin:0 0 10px;font-size:13px;font-weight:600;color:#334155;">目前訂閱詳情</p>
+                <p class="muted" style="margin:0 0 12px;line-height:1.5;">
+                    <?php if (isset($sub['slug']) && $sub['slug'] === 'free'): ?>
+                        免費方案無到期日；狀態僅表示帳號已啟用此方案額度。
+                    <?php else: ?>
+                        付費方案於「訂閱週期」結束後，若未續約，系統會自動改回免費方案。
+                    <?php endif; ?>
+                </p>
                 <div class="row">
-                    <strong>狀態</strong> <?= htmlspecialchars(account_status_label($sub['status'])) ?>
+                    <strong>狀態</strong> <?= htmlspecialchars(subscription_status_label_member($sub['status'], isset($sub['slug']) ? $sub['slug'] : '')) ?>
                 </div>
                 <?php if (!empty($sub['current_period_start']) || !empty($sub['current_period_end'])): ?>
                     <div class="row"><strong>目前週期</strong>
@@ -513,6 +515,64 @@ function account_center_plan_quota(array $p)
             </div>
         <?php else: ?>
             <p class="muted" style="margin-bottom:0;">尚無訂閱紀錄。若您應享有方案，請聯絡管理員。</p>
+        <?php endif; ?>
+
+        <?php if (count($subHistory) > 0): ?>
+            <div class="subscription-history-wrap">
+                <p style="margin:0 0 10px;font-size:13px;font-weight:600;color:#334155;">歷史訂閱紀錄</p>
+                <p class="muted" style="margin:0 0 12px;line-height:1.5;">以下為帳號內所有訂閱紀錄（含免費註冊與升級）；與上方「目前訂閱詳情」對應者列為淺藍底色。</p>
+                <div class="plan-table-wrap">
+                    <table class="plan-table" role="table" aria-label="歷史訂閱紀錄">
+                        <thead>
+                            <tr>
+                                <th scope="col">方案</th>
+                                <th scope="col">狀態</th>
+                                <th scope="col">計費</th>
+                                <th scope="col">訂閱週期</th>
+                                <th scope="col">紀錄時間</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($subHistory as $h): ?>
+                                <?php
+                                $hid = (int) $h['id'];
+                                $isCurrentRow = $sub && $hid === (int) $sub['id'];
+                                ?>
+                                <tr class="<?= $isCurrentRow ? 'sub-history-row--current' : '' ?>">
+                                    <td class="col-name">
+                                        <?= htmlspecialchars($h['plan_name']) ?>
+                                        <span class="muted" style="font-size:12px;">（<?= htmlspecialchars($h['slug']) ?>）</span>
+                                    </td>
+                                    <td><?= htmlspecialchars(subscription_status_label_member($h['status'], isset($h['slug']) ? $h['slug'] : '')) ?></td>
+                                    <td><?= htmlspecialchars(account_billing_label($h['billing_interval'] ?? '')) ?></td>
+                                    <td style="color:#475569;font-size:12px;line-height:1.45;">
+                                        <?php if (!empty($h['current_period_start']) || !empty($h['current_period_end'])): ?>
+                                            <?= htmlspecialchars($h['current_period_start'] ? $h['current_period_start'] : '—') ?>
+                                            ～
+                                            <?= htmlspecialchars($h['current_period_end'] ? $h['current_period_end'] : '—') ?>
+                                        <?php else: ?>
+                                            —
+                                        <?php endif; ?>
+                                        <?php if (!empty($h['cancel_at_period_end'])): ?>
+                                            <br><span class="muted">週期結束後取消續訂</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td style="color:#475569;font-size:12px;line-height:1.45;">
+                                        <?= htmlspecialchars($h['created_at'] ?? '') ?>
+                                        <?php
+                                        $ua = $h['updated_at'] ?? '';
+                                        $ca = $h['created_at'] ?? '';
+                                        if ($ua !== '' && $ua !== $ca):
+                                        ?>
+                                            <br><span class="muted">更新 <?= htmlspecialchars($ua) ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         <?php endif; ?>
 
         <?php if ($slugNow === 'free' && ! $canMpg): ?>

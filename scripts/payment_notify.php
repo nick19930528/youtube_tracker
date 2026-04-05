@@ -97,18 +97,32 @@ try {
     if (isset($order['plan_slug']) && (string)$order['plan_slug'] !== '') {
         $planSlug = (string)$order['plan_slug'];
     }
-    $pst = $pdo->prepare('SELECT id FROM subscription_plans WHERE slug = ? AND is_active = 1 LIMIT 1');
+    $pst = $pdo->prepare('SELECT id, billing_interval FROM subscription_plans WHERE slug = ? AND is_active = 1 LIMIT 1');
     $pst->execute(array($planSlug));
-    $planId = $pst->fetchColumn();
-    if ($planId) {
-        $planId = (int)$planId;
+    $planRow = $pst->fetch(PDO::FETCH_ASSOC);
+    if ($planRow) {
+        $planId = (int) $planRow['id'];
+        $billing = isset($planRow['billing_interval']) ? (string) $planRow['billing_interval'] : 'month';
         $sid = $pdo->query('SELECT id FROM subscriptions WHERE user_id = ' . (int)$uid . ' ORDER BY id DESC LIMIT 1')->fetchColumn();
         if ($sid) {
-            $pdo->prepare('UPDATE subscriptions SET plan_id = ?, status = ?, current_period_start = NOW(), updated_at = NOW() WHERE id = ?')
-                ->execute(array($planId, 'active', $sid));
+            $sid = (int) $sid;
+            if ($billing === 'year') {
+                $u = $pdo->prepare("UPDATE subscriptions SET plan_id = ?, status = 'active', current_period_start = NOW(), current_period_end = DATE_ADD(NOW(), INTERVAL 1 YEAR), updated_at = NOW() WHERE id = ?");
+            } elseif ($billing === 'month') {
+                $u = $pdo->prepare("UPDATE subscriptions SET plan_id = ?, status = 'active', current_period_start = NOW(), current_period_end = DATE_ADD(NOW(), INTERVAL 1 MONTH), updated_at = NOW() WHERE id = ?");
+            } else {
+                $u = $pdo->prepare("UPDATE subscriptions SET plan_id = ?, status = 'active', current_period_start = NOW(), current_period_end = NULL, updated_at = NOW() WHERE id = ?");
+            }
+            $u->execute(array($planId, $sid));
         } else {
-            $pdo->prepare('INSERT INTO subscriptions (user_id, plan_id, status, current_period_start) VALUES (?, ?, ?, NOW())')
-                ->execute(array($uid, $planId, 'active'));
+            if ($billing === 'year') {
+                $ins = $pdo->prepare("INSERT INTO subscriptions (user_id, plan_id, status, current_period_start, current_period_end) VALUES (?, ?, 'active', NOW(), DATE_ADD(NOW(), INTERVAL 1 YEAR))");
+            } elseif ($billing === 'month') {
+                $ins = $pdo->prepare("INSERT INTO subscriptions (user_id, plan_id, status, current_period_start, current_period_end) VALUES (?, ?, 'active', NOW(), DATE_ADD(NOW(), INTERVAL 1 MONTH))");
+            } else {
+                $ins = $pdo->prepare("INSERT INTO subscriptions (user_id, plan_id, status, current_period_start, current_period_end) VALUES (?, ?, 'active', NOW(), NULL)");
+            }
+            $ins->execute(array($uid, $planId));
         }
     }
     $pdo->commit();
