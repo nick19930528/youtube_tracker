@@ -76,6 +76,15 @@ if ($page !== 'home') {
             require __DIR__ . '/views/account/center.php';
             break;
 
+        case 'admin':
+        case 'admin_members':
+            require __DIR__ . '/views/admin/members.php';
+            break;
+
+        case 'admin_member':
+            require __DIR__ . '/views/admin/member.php';
+            break;
+
         case 'test_lab':
             require __DIR__ . '/views/test_lab.php';
             break;
@@ -1378,7 +1387,12 @@ body {
         <?= htmlspecialchars($currentAuthUser['name'] !== '' ? $currentAuthUser['name'] : $currentAuthUser['email']) ?>
         <span style="color:#999;">(<?= htmlspecialchars($currentAuthUser['email']) ?>)</span>
         <a href="index.php?page=account">會員中心</a>
+        <?php if (auth_is_admin()): ?>
+        <a href="index.php?page=admin">後台會員</a>
+        <?php endif; ?>
+        <?php if (auth_can_test_lab()): ?>
         <a href="index.php?page=test_lab">測試</a>
+        <?php endif; ?>
         <a href="index.php?page=logout">登出</a>
     </div>
 </header>

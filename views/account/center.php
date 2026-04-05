@@ -342,6 +342,9 @@ function account_center_plan_quota(array $p)
 <body>
 <header class="account-top">
     <a class="account-back" href="index.php"><span aria-hidden="true">←</span> 回首頁</a>
+    <?php if (auth_is_admin()): ?>
+        <a class="account-back" href="index.php?page=admin">後台會員</a>
+    <?php endif; ?>
 </header>
 <div class="wrap">
     <div class="page-head">

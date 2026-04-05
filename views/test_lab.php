@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/bootstrap.php';
-auth_require_login();
+auth_require_test_lab();
 ?>
 <!DOCTYPE html>
 <html lang="zh-Hant">
@@ -32,6 +32,9 @@ h1 { font-size: 1.25rem; margin: 0 0 8px; }
 <nav class="nav-top">
     <a href="index.php">🏠 首頁</a>
     <a href="index.php?page=account">會員中心</a>
+    <?php if (auth_is_admin()): ?>
+    <a href="index.php?page=admin">後台會員</a>
+    <?php endif; ?>
     <a href="index.php?page=test_lab">測試</a>
     <a href="index.php?page=logout">登出</a>
 </nav>
