@@ -6,17 +6,34 @@ define('YOUTUBE_API_KEY', 'AIzaSyBERv3BEkfKJ1Q5cFKXfRbj2SoQyUi9kpg');    // ← 
 define('OPENAI_API_KEY', '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');      // ← 替換為你的 OpenAI 金鑰
 
 class Database {
-    private $host = "localhost:3307";
-    private $db_name = "youtube_tracker";
-    private $username = "root";     // 改成你自己的帳號
-    private $password = "0000";     // 改成你自己的密碼
     public $conn;
 
     public function getConnection() {
         $this->conn = null;
+        $host = getenv('DB_HOST');
+        if ($host === false || $host === '') {
+            $host = 'localhost';
+        }
+        $port = getenv('DB_PORT');
+        if ($port === false || $port === '') {
+            $port = '3307';
+        }
+        $dbName = getenv('DB_NAME');
+        if ($dbName === false || $dbName === '') {
+            $dbName = 'youtube_tracker';
+        }
+        $username = getenv('DB_USER');
+        if ($username === false || $username === '') {
+            $username = 'root';
+        }
+        $password = getenv('DB_PASSWORD');
+        if ($password === false) {
+            $password = '0000';
+        }
+
         try {
-            $dsn = "mysql:host={$this->host};dbname={$this->db_name};charset=utf8mb4";
-            $this->conn = new PDO($dsn, $this->username, $this->password);
+            $dsn = "mysql:host={$host};port={$port};dbname={$dbName};charset=utf8mb4";
+            $this->conn = new PDO($dsn, $username, $password);
             $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         } catch (PDOException $exception) {
             die("❌ 資料庫連線失敗: " . $exception->getMessage());
