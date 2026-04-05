@@ -31,14 +31,52 @@ class Database {
             $password = '0000';
         }
 
-        try {
-            $dsn = "mysql:host={$host};port={$port};dbname={$dbName};charset=utf8mb4";
-            $this->conn = new PDO($dsn, $username, $password);
-            $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        } catch (PDOException $exception) {
-            die("❌ 資料庫連線失敗: " . $exception->getMessage());
+        $dsn = "mysql:host={$host};port={$port};dbname={$dbName};charset=utf8mb4";
+
+        $options = array(
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_PERSISTENT => false,
+            PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
+        );
+        if (defined('PDO::ATTR_TIMEOUT')) {
+            $options[PDO::ATTR_TIMEOUT] = 60;
         }
-        return $this->conn;
+
+        $sslCa = getenv('DB_SSL_CA');
+        if ($sslCa !== false && $sslCa !== '' && is_readable($sslCa)) {
+            $options[PDO::MYSQL_ATTR_SSL_CA] = $sslCa;
+            $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+        }
+
+        // 遠端連線時降低「MySQL server has gone away」(2006) 機率
+        if (function_exists('ini_set')) {
+            @ini_set('default_socket_timeout', '120');
+            @ini_set('mysqlnd.net_read_timeout', '120');
+        }
+
+        $maxAttempts = 3;
+        $lastException = null;
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            try {
+                $this->conn = new PDO($dsn, $username, $password, $options);
+                $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                return $this->conn;
+            } catch (PDOException $exception) {
+                $lastException = $exception;
+                $msg = $exception->getMessage();
+                $retryable = (stripos($msg, 'gone away') !== false
+                    || stripos($msg, '2006') !== false
+                    || stripos($msg, 'Lost connection') !== false);
+                if ($retryable && $attempt < $maxAttempts) {
+                    usleep(150000 * $attempt);
+                    continue;
+                }
+                break;
+            }
+        }
+
+        die("❌ 資料庫連線失敗: " . ($lastException ? $lastException->getMessage() : 'unknown'));
     }
 }
 
