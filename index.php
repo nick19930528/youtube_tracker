@@ -79,6 +79,10 @@ if ($page !== 'home') {
             require __DIR__ . '/views/account/center.php';
             break;
 
+        case 'support':
+            require __DIR__ . '/views/account/support.php';
+            break;
+
         case 'admin':
         case 'admin_members':
             require __DIR__ . '/views/admin/members.php';
@@ -1390,6 +1394,7 @@ body {
         <?= htmlspecialchars($currentAuthUser['name'] !== '' ? $currentAuthUser['name'] : $currentAuthUser['email']) ?>
         <span style="color:#999;">(<?= htmlspecialchars($currentAuthUser['email']) ?>)</span>
         <a href="index.php?page=account">會員中心</a>
+        <a href="index.php?page=support">客服</a>
         <?php if (auth_is_admin()): ?>
         <a href="index.php?page=admin">後台會員</a>
         <?php endif; ?>
