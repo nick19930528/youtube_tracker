@@ -8,7 +8,8 @@ RUN apt-get update \
     && docker-php-ext-install -j$(nproc) pdo_mysql mysqli curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY composer.json /var/www/html/composer.json
+# Cloud Run：容器需聽環境變數 PORT（見 docker/entrypoint.sh）；部署時請確認服務埠與 PORT 一致（預設 8080）。
+COPY composer.json composer.lock /var/www/html/
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
     && cd /var/www/html && composer install --no-dev --no-interaction --optimize-autoloader \
     && rm -rf /root/.composer
