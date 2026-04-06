@@ -43,17 +43,20 @@ class Database {
             }
         }
         $hostTrim = trim((string)$host);
-        $useSocket = false;
+        $socketPath = '';
         if ($socket !== false && trim((string)$socket) !== '') {
-            $useSocket = true;
-            $socket = trim((string)$socket);
+            $socketPath = trim((string)$socket);
         } elseif (strpos($hostTrim, '/cloudsql/') === 0) {
-            $useSocket = true;
-            $socket = $hostTrim;
+            $socketPath = $hostTrim;
         }
 
-        if ($useSocket) {
-            $dsn = "mysql:unix_socket={$socket};dbname={$dbName};charset=utf8mb4";
+        // 只有在 socket 路徑真的存在時才使用 unix_socket，避免本機/未掛載 Cloud SQL 時直接噴 2002 No such file.
+        // Cloud Run 若已在「Cloud SQL 連接」選了 instance，平台會掛載 /cloudsql/<INSTANCE_CONNECTION_NAME>（目錄）。
+        $socketExists = ($socketPath !== '') && (file_exists($socketPath) || is_dir($socketPath));
+        $wantSocket = ($socketPath !== '');
+
+        if ($socketExists) {
+            $dsn = "mysql:unix_socket={$socketPath};dbname={$dbName};charset=utf8mb4";
         } else {
             $dsn = "mysql:host={$host};port={$port};dbname={$dbName};charset=utf8mb4";
         }
@@ -101,6 +104,10 @@ class Database {
             }
         }
 
+        // 若有設定 /cloudsql 但 socket 沒掛載，給出更直覺提示（常見於 Cloud Run 未勾選 Cloud SQL 連接、或 instance/region 不一致）
+        if ($wantSocket && !$socketExists) {
+            die("❌ 資料庫連線失敗: 找不到 Cloud SQL socket（{$socketPath}）。請確認 Cloud Run 服務已設定 Cloud SQL 連接，或改用 DB_HOST/DB_PORT（IP/內網）連線。");
+        }
         die("❌ 資料庫連線失敗: " . ($lastException ? $lastException->getMessage() : 'unknown'));
     }
 }
