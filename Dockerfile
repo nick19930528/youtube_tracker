@@ -14,6 +14,10 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
     && cd /var/www/html && composer install --no-dev --no-interaction --optimize-autoloader \
     && rm -rf /root/.composer
 
+# Cloud Run 沒有 bind mount；必須把應用程式原始碼 copy 進 image。
+# 本機 docker-compose.yml 會用 volumes 把整個專案掛到 /var/www/html，覆蓋掉此 COPY 以方便開發。
+COPY . /var/www/html
+
 RUN a2enmod rewrite headers
 
 # 預設站點根目錄（可被 compose 覆寫掛載）
