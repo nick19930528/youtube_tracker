@@ -20,6 +20,8 @@ services:
       DB_NAME: ${DB_NAME:-youtube_tracker}
       DB_USER: ${DB_USER:-appuser}
       DB_PASSWORD: ${DB_PASSWORD:-123456}
+      DB_SOCKET: ${DB_SOCKET:-}
+      CLOUD_SQL_CONNECTION_NAME: ${CLOUD_SQL_CONNECTION_NAME:-}
       APP_BASE_URL: ${APP_BASE_URL:-https://tubelog.xyz}
       MAIL_SMTP_HOST: ${MAIL_SMTP_HOST:-smtp.gmail.com}
       MAIL_SMTP_PORT: ${MAIL_SMTP_PORT:-587}

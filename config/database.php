@@ -31,7 +31,32 @@ class Database {
             $password = '0000';
         }
 
-        $dsn = "mysql:host={$host};port={$port};dbname={$dbName};charset=utf8mb4";
+        // Cloud SQL（Cloud Run）：優先使用 Unix socket
+        // - DB_SOCKET=/cloudsql/<INSTANCE_CONNECTION_NAME>
+        // - 或 CLOUD_SQL_CONNECTION_NAME=<INSTANCE_CONNECTION_NAME>
+        // - 或 DB_HOST=/cloudsql/<INSTANCE_CONNECTION_NAME>
+        $socket = getenv('DB_SOCKET');
+        if ($socket === false || $socket === '') {
+            $cs = getenv('CLOUD_SQL_CONNECTION_NAME');
+            if ($cs !== false && trim((string)$cs) !== '') {
+                $socket = '/cloudsql/' . trim((string)$cs);
+            }
+        }
+        $hostTrim = trim((string)$host);
+        $useSocket = false;
+        if ($socket !== false && trim((string)$socket) !== '') {
+            $useSocket = true;
+            $socket = trim((string)$socket);
+        } elseif (strpos($hostTrim, '/cloudsql/') === 0) {
+            $useSocket = true;
+            $socket = $hostTrim;
+        }
+
+        if ($useSocket) {
+            $dsn = "mysql:unix_socket={$socket};dbname={$dbName};charset=utf8mb4";
+        } else {
+            $dsn = "mysql:host={$host};port={$port};dbname={$dbName};charset=utf8mb4";
+        }
 
         $options = array(
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
