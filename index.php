@@ -25,7 +25,7 @@ if ($page === 'logout') {
     exit;
 }
 
-if ($page === 'login' || $page === 'register') {
+if ($page === 'login' || $page === 'register' || $page === 'forgot_password') {
     require __DIR__ . '/views/auth/auth.php';
     exit;
 }

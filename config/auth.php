@@ -237,3 +237,80 @@ function auth_verify_email_by_token(PDO $pdo, $token)
 
     return true;
 }
+
+/** 忘記密碼：兩次寄信最短間隔（秒） */
+define('AUTH_PASSWORD_RESET_COOLDOWN_SEC', 180);
+
+/**
+ * 產生暫時登入密碼（易讀字元，不含易混淆符號）
+ *
+ * @return string
+ */
+function auth_generate_temp_password($length = 14)
+{
+    $chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    $out = '';
+    $max = strlen($chars) - 1;
+    for ($i = 0; $i < $length; $i++) {
+        $out .= $chars[random_int(0, $max)];
+    }
+    return $out;
+}
+
+/**
+ * 忘記密碼：寄暫時密碼（不透露該 Email 是否已註冊）
+ *
+ * @return true|string true 表示流程結束（成功或刻意隱藏）；字串為可顯示錯誤
+ */
+function auth_request_password_reset(PDO $pdo, $email)
+{
+    $email = trim($email);
+    if ($email === '') {
+        return '請輸入 Email。';
+    }
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return 'Email 格式不正確。';
+    }
+    if (!mail_is_configured()) {
+        return '系統尚未設定寄信（SMTP），無法重設密碼。請聯絡管理員。';
+    }
+
+    try {
+        $stmt = $pdo->prepare('SELECT id, email, name, password_reset_last_sent_at FROM users WHERE email = ? LIMIT 1');
+        $stmt->execute(array($email));
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        // Unknown column（欄位尚未 migration）
+        if (isset($e->errorInfo[1]) && (int)$e->errorInfo[1] === 1054) {
+            return '資料庫尚未更新，無法使用忘記密碼。請管理員執行 config/migrations/012_users_password_reset_throttle.sql。';
+        }
+        return '無法查詢帳號，請稍後再試。';
+    }
+
+    if (!$row) {
+        return true;
+    }
+
+    $lastRaw = isset($row['password_reset_last_sent_at']) ? $row['password_reset_last_sent_at'] : null;
+    if ($lastRaw !== null && $lastRaw !== '') {
+        $lastTs = strtotime((string)$lastRaw);
+        if ($lastTs !== false && (time() - $lastTs) < AUTH_PASSWORD_RESET_COOLDOWN_SEC) {
+            return true;
+        }
+    }
+
+    $plain = auth_generate_temp_password();
+    if (!mail_send_temporary_password($row['email'], isset($row['name']) ? (string)$row['name'] : '', $plain)) {
+        return '無法寄送郵件，請稍後再試。';
+    }
+
+    $hash = password_hash($plain, PASSWORD_DEFAULT);
+    try {
+        $stmt = $pdo->prepare('UPDATE users SET password_hash = ?, password_reset_last_sent_at = NOW() WHERE id = ?');
+        $stmt->execute(array($hash, (int)$row['id']));
+    } catch (PDOException $e) {
+        return '無法更新密碼，請稍後再試或聯絡管理員。';
+    }
+
+    return true;
+}

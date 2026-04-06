@@ -2,12 +2,20 @@
 require_once __DIR__ . '/../../config/bootstrap.php';
 
 $error = '';
+$forgotSuccess = false;
 $redirect = isset($_POST['redirect']) ? (string)$_POST['redirect'] : (isset($_GET['redirect']) ? (string)$_GET['redirect'] : 'index.php');
 $notice = isset($_GET['notice']) ? (string)$_GET['notice'] : '';
 $authNoticeOk = ($notice === 'verify_ok');
 $authNoticeErr = ($notice === 'verify_fail');
 
-$authPage = (isset($_GET['page']) && $_GET['page'] === 'register') ? 'register' : 'login';
+$authPage = 'login';
+if (isset($_GET['page'])) {
+    if ($_GET['page'] === 'register') {
+        $authPage = 'register';
+    } elseif ($_GET['page'] === 'forgot_password') {
+        $authPage = 'forgot_password';
+    }
+}
 
 if (auth_check()) {
     header('Location: ' . (preg_match('#^index\.php#', $redirect) ? $redirect : 'index.php'));
@@ -15,7 +23,16 @@ if (auth_check()) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if ($authPage === 'register') {
+    if ($authPage === 'forgot_password') {
+        $pdo = (new Database())->getConnection();
+        $email = trim($_POST['email'] ?? '');
+        $resetResult = auth_request_password_reset($pdo, $email);
+        if ($resetResult === true) {
+            $forgotSuccess = true;
+        } else {
+            $error = is_string($resetResult) ? $resetResult : '無法處理重設請求。';
+        }
+    } elseif ($authPage === 'register') {
         $pdo = (new Database())->getConnection();
         $name = trim($_POST['name'] ?? '');
         $email = trim($_POST['email'] ?? '');
@@ -49,7 +66,11 @@ if ($redirect !== '') {
     $loginTabHref .= '&redirect=' . rawurlencode($redirect);
 }
 $registerTabHref = 'index.php?page=register';
-$pageTitle = $authPage === 'register' ? '註冊' : '登入';
+$forgotHref = 'index.php?page=forgot_password';
+if ($redirect !== '') {
+    $forgotHref .= '&redirect=' . rawurlencode($redirect);
+}
+$pageTitle = $authPage === 'register' ? '註冊' : ($authPage === 'forgot_password' ? '忘記密碼' : '登入');
 ?>
 <!DOCTYPE html>
 <html lang="zh-Hant">
@@ -219,6 +240,18 @@ $pageTitle = $authPage === 'register' ? '註冊' : '登入';
             font-size: 0.9rem;
             line-height: 1.4;
         }
+        .auth-success span:first-child { flex-shrink: 0; }
+        .auth-link {
+            color: #2563eb;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .auth-link:hover { text-decoration: underline; }
+        .auth-forgot-row {
+            margin-top: 10px;
+            text-align: right;
+            font-size: 0.88rem;
+        }
         label {
             display: block;
             margin-bottom: 6px;
@@ -294,13 +327,14 @@ $pageTitle = $authPage === 'register' ? '註冊' : '登入';
 </head>
 <body>
     <div class="auth-bg" aria-hidden="true"></div>
-    <main class="auth-shell<?= $authPage === 'register' ? ' auth-shell--wide' : '' ?>">
+    <main class="auth-shell<?= ($authPage === 'register' || $authPage === 'forgot_password') ? ' auth-shell--wide' : '' ?>">
         <div class="auth-card">
             <div class="auth-brand">
                 <div class="auth-brand-icon" aria-hidden="true">▶</div>
                 <h1>YouTube Tracker</h1>
                 <p>登入或註冊，管理訂閱與待看清單</p>
             </div>
+            <?php if ($authPage !== 'forgot_password'): ?>
             <nav class="auth-tabs" role="tablist" aria-label="登入或註冊">
                 <a
                     id="tab-login"
@@ -319,8 +353,18 @@ $pageTitle = $authPage === 'register' ? '註冊' : '登入';
                     aria-controls="panel-register"
                 >註冊</a>
             </nav>
+            <?php else: ?>
+            <p style="margin:0 0 18px;text-align:center;">
+                <a class="auth-link" href="<?= htmlspecialchars($loginTabHref) ?>">← 返回登入</a>
+            </p>
+            <?php endif; ?>
 
-            <?php if ($authNoticeOk): ?>
+            <?php if ($forgotSuccess): ?>
+                <div class="auth-success" role="status">
+                    <span aria-hidden="true">✉️</span>
+                    <span>若此 Email 已註冊，您將很快收到內含<strong>暫時密碼</strong>的信件。請登入後至<strong>會員中心</strong>變更為自己的密碼。若未收到，請檢查垃圾郵件匣。</span>
+                </div>
+            <?php elseif ($authNoticeOk): ?>
                 <div class="auth-success" role="status">
                     <span aria-hidden="true">✅</span>
                     <span>Email 驗證完成，請登入。</span>
@@ -332,13 +376,14 @@ $pageTitle = $authPage === 'register' ? '註冊' : '登入';
                 </div>
             <?php endif; ?>
 
-            <?php if ($error !== ''): ?>
+            <?php if ($error !== '' && !$forgotSuccess): ?>
                 <div class="auth-alert" role="alert">
                     <span aria-hidden="true">⚠️</span>
                     <span><?= htmlspecialchars($error) ?></span>
                 </div>
             <?php endif; ?>
 
+            <?php if (!$forgotSuccess): ?>
             <div class="auth-panels">
                 <div
                     id="panel-login"
@@ -357,6 +402,9 @@ $pageTitle = $authPage === 'register' ? '註冊' : '登入';
                         <div class="field">
                             <label for="login-password">密碼</label>
                             <input type="password" id="login-password" name="password" required autocomplete="current-password" placeholder="請輸入密碼">
+                        </div>
+                        <div class="auth-forgot-row">
+                            <a class="auth-link" href="<?= htmlspecialchars($forgotHref) ?>">忘記密碼？</a>
                         </div>
                         <button type="submit" class="btn-submit">登入</button>
                     </form>
@@ -400,7 +448,31 @@ $pageTitle = $authPage === 'register' ? '註冊' : '登入';
                         <button type="submit" class="btn-submit">建立帳號</button>
                     </form>
                 </div>
+
+                <div
+                    id="panel-forgot"
+                    class="auth-panel<?= $authPage === 'forgot_password' ? ' is-active' : '' ?>"
+                    role="tabpanel"
+                    aria-labelledby="tab-forgot"
+                    <?= $authPage === 'forgot_password' ? '' : 'hidden' ?>
+                >
+                    <p class="auth-panel-title">重設密碼</p>
+                    <p class="field-hint" style="margin:-8px 0 14px;">輸入註冊時使用的 Email，我們會寄送<strong>暫時密碼</strong>到您的信箱（為安全起見，無論帳號是否存在皆顯示相同提示）。</p>
+                    <form method="post" action="<?= htmlspecialchars($forgotHref) ?>" autocomplete="on">
+                        <input type="hidden" name="redirect" value="<?= htmlspecialchars($redirect) ?>">
+                        <div class="field">
+                            <label for="forgot-email">Email</label>
+                            <input type="email" id="forgot-email" name="email" required autocomplete="email" placeholder="name@example.com" value="<?= htmlspecialchars($authPage === 'forgot_password' ? ($_POST['email'] ?? '') : '') ?>">
+                        </div>
+                        <button type="submit" class="btn-submit">寄送暫時密碼</button>
+                    </form>
+                </div>
             </div>
+            <?php else: ?>
+            <p style="margin:16px 0 0;text-align:center;">
+                <a class="auth-link" href="<?= htmlspecialchars($loginTabHref) ?>">前往登入</a>
+            </p>
+            <?php endif; ?>
         </div>
     </main>
 </body>
