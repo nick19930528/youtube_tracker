@@ -115,13 +115,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>新增影片</title>
     <style>
         body { font-family: Arial; margin: 20px; }
-        body[data-theme="dark"] { background: #0b1220; color: #e2e8f0; }
-        body[data-theme="dark"] a { color: #93c5fd; }
-        body[data-theme="dark"] input, body[data-theme="dark"] button {
-            background: rgba(2, 6, 23, 0.85);
-            color: #e2e8f0;
-            border: 1px solid rgba(51, 65, 85, 0.9);
+        input, button {
+            font-family: inherit;
+            font-size: 14px;
         }
+        input[type="text"] {
+            padding: 10px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+        }
+        button {
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            cursor: pointer;
+        }
+        button:hover { background: #f8fafc; }
+
+        body[data-theme="dark"] { background: #111213; color: #e7e7e7; }
+        body[data-theme="dark"] a { color: #9cc3ff; }
+        body[data-theme="dark"] input[type="text"] {
+            background: rgba(17, 18, 19, 0.85);
+            color: #e7e7e7;
+            border: 1px solid rgba(255, 255, 255, 0.10);
+        }
+        body[data-theme="dark"] button {
+            background: rgba(32, 33, 35, 0.92);
+            color: #e7e7e7;
+            border: 1px solid rgba(255, 255, 255, 0.10);
+        }
+        body[data-theme="dark"] button:hover { background: rgba(255,255,255,0.06); }
     </style>
 </head>
 <body data-theme="<?= htmlspecialchars($uiTheme, ENT_QUOTES, 'UTF-8') ?>">

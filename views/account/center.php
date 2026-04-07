@@ -205,18 +205,80 @@ function account_center_plan_quota(array $p)
     <title>會員中心 — TubeLog</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; }
+
+        /* Theme tokens（用變數做出你參考圖那種整體一致的效果） */
+        :root {
+            --bg: #f1f5f9;
+            --bg-grad-1: radial-gradient(ellipse 90% 70% at 100% 0%, rgba(59, 130, 246, 0.14), transparent 55%);
+            --bg-grad-2: radial-gradient(ellipse 70% 55% at 0% 100%, rgba(14, 165, 233, 0.10), transparent 50%);
+            --bg-grad-3: linear-gradient(165deg, #f8fafc 0%, #f1f5f9 45%, #eef2f7 100%);
+
+            --text: #0f172a;
+            --muted: #64748b;
+            --muted-2: #94a3b8;
+            --link: #2563eb;
+
+            --surface: rgba(255, 255, 255, 0.96);
+            --surface-solid: #ffffff;
+            --border: rgba(226, 232, 240, 0.9);
+            --divider: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 10px 24px -8px rgba(15, 23, 42, 0.08);
+
+            --control-bg: #ffffff;
+            --control-border: #e2e8f0;
+            --control-text: #0f172a;
+            --focus-ring: 0 0 0 3px rgba(59, 130, 246, 0.2);
+
+            --ok-bg: #ecfdf5;
+            --ok-border: #a7f3d0;
+            --ok-text: #065f46;
+            --err-bg: #fef2f2;
+            --err-border: #fecaca;
+            --err-text: #991b1b;
+        }
+
+        body[data-theme="dark"] {
+            /* 參考圖：背景更深、表面略亮一階、邊線很淡、文字層級清楚 */
+            --bg: #111213;
+            --bg-grad-1: radial-gradient(ellipse 90% 70% at 100% 0%, rgba(255, 255, 255, 0.03), transparent 60%);
+            --bg-grad-2: radial-gradient(ellipse 70% 55% at 0% 100%, rgba(255, 255, 255, 0.02), transparent 55%);
+            --bg-grad-3: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+
+            --text: #e7e7e7;
+            --muted: rgba(231, 231, 231, 0.70);
+            --muted-2: rgba(231, 231, 231, 0.55);
+            --link: #9cc3ff;
+
+            --surface: rgba(32, 33, 35, 0.92);
+            --surface-solid: #202123;
+            --border: rgba(255, 255, 255, 0.08);
+            --divider: rgba(255, 255, 255, 0.08);
+            --shadow: 0 10px 30px rgba(0,0,0,0.35);
+
+            --control-bg: rgba(17, 18, 19, 0.85);
+            --control-border: rgba(255, 255, 255, 0.10);
+            --control-text: #e7e7e7;
+            --focus-ring: 0 0 0 3px rgba(156, 195, 255, 0.18);
+
+            --ok-bg: rgba(16, 185, 129, 0.12);
+            --ok-border: rgba(16, 185, 129, 0.25);
+            --ok-text: #a7f3d0;
+            --err-bg: rgba(239, 68, 68, 0.12);
+            --err-border: rgba(239, 68, 68, 0.28);
+            --err-text: #fecaca;
+        }
+
         body {
             font-family: "Segoe UI", system-ui, -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif;
             margin: 0;
             min-height: 100vh;
             padding: 0 20px 40px;
-            color: #0f172a;
-            background-color: #f1f5f9;
+            color: var(--text);
+            background-color: var(--bg);
             background-image:
-                url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%2394a3b8' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/svg%3E"),
-                radial-gradient(ellipse 90% 70% at 100% 0%, rgba(59, 130, 246, 0.14), transparent 55%),
-                radial-gradient(ellipse 70% 55% at 0% 100%, rgba(14, 165, 233, 0.1), transparent 50%),
-                linear-gradient(165deg, #f8fafc 0%, #f1f5f9 45%, #eef2f7 100%);
+                var(--bg-grad-1),
+                var(--bg-grad-2),
+                var(--bg-grad-3);
         }
         .account-top {
             max-width: 720px;
@@ -229,54 +291,54 @@ function account_center_plan_quota(array $p)
             gap: 6px;
             font-size: 0.95rem;
             font-weight: 600;
-            color: #2563eb;
+            color: var(--link);
             text-decoration: none;
             padding: 8px 4px;
             border-radius: 10px;
             transition: background 0.15s, color 0.15s;
         }
-        .account-back:hover { background: rgba(37, 99, 235, 0.08); color: #1d4ed8; }
+        .account-back:hover { background: rgba(255, 255, 255, 0.06); }
         .account-back span { font-size: 1.1rem; line-height: 1; }
         .wrap { max-width: 720px; margin: 0 auto; }
         .page-head { margin-bottom: 22px; }
         h1 { font-size: 1.5rem; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.02em; }
-        .sub { color: #64748b; font-size: 0.92rem; margin: 0; line-height: 1.45; }
+        .sub { color: var(--muted); font-size: 0.92rem; margin: 0; line-height: 1.45; }
         .card {
-            background: rgba(255, 255, 255, 0.96);
-            border: 1px solid rgba(226, 232, 240, 0.9);
+            background: var(--surface);
+            border: 1px solid var(--border);
             border-radius: 16px;
             padding: 22px 24px;
             margin-bottom: 16px;
-            box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 10px 24px -8px rgba(15, 23, 42, 0.08);
+            box-shadow: var(--shadow);
         }
         .card h2 {
             font-size: 1.05rem;
             font-weight: 700;
             margin: 0 0 16px;
-            color: #0f172a;
-            border-bottom: 1px solid #e2e8f0;
+            color: var(--text);
+            border-bottom: 1px solid var(--divider);
             padding-bottom: 12px;
         }
         .row { margin-bottom: 12px; font-size: 14px; line-height: 1.5; }
-        .row strong { display: inline-block; min-width: 100px; color: #64748b; font-weight: 600; }
-        label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: #475569; }
+        .row strong { display: inline-block; min-width: 100px; color: var(--muted); font-weight: 600; }
+        label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
         input[type="text"], input[type="password"], input[type="number"], select {
             width: 100%;
             max-width: 400px;
             padding: 11px 13px;
-            border: 1px solid #e2e8f0;
+            border: 1px solid var(--control-border);
             border-radius: 10px;
             font-size: 14px;
             font-family: inherit;
-            color: #0f172a;
-            background: #fff;
+            color: var(--control-text);
+            background: var(--control-bg);
             transition: border-color 0.2s, box-shadow 0.2s;
         }
-        input:hover, select:hover { border-color: #cbd5e1; }
+        input:hover, select:hover { border-color: rgba(255, 255, 255, 0.14); }
         input:focus, select:focus {
             outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+            border-color: rgba(156, 195, 255, 0.45);
+            box-shadow: var(--focus-ring);
         }
         select {
             appearance: none;
@@ -308,7 +370,7 @@ function account_center_plan_quota(array $p)
             box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
         }
         button[type="submit"]:active { transform: translateY(0); }
-        .hint { font-size: 12px; color: #64748b; margin-top: 6px; line-height: 1.45; }
+        .hint { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.45; }
         .alert {
             padding: 12px 16px;
             border-radius: 12px;
@@ -316,8 +378,8 @@ function account_center_plan_quota(array $p)
             font-size: 14px;
             line-height: 1.45;
         }
-        .alert--ok { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
-        .alert--err { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+        .alert--ok { background: var(--ok-bg); border: 1px solid var(--ok-border); color: var(--ok-text); }
+        .alert--err { background: var(--err-bg); border: 1px solid var(--err-border); color: var(--err-text); }
         .plan-badge {
             display: inline-block;
             background: #e0f2fe;
@@ -327,7 +389,7 @@ function account_center_plan_quota(array $p)
             font-weight: 600;
             font-size: 13px;
         }
-        .muted { color: #94a3b8; font-size: 13px; }
+        .muted { color: var(--muted-2); font-size: 13px; }
         .btn-upgrade {
             display: inline-block;
             margin-top: 16px;
@@ -342,12 +404,12 @@ function account_center_plan_quota(array $p)
             transition: transform 0.15s, box-shadow 0.15s;
         }
         .btn-upgrade:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(3, 105, 161, 0.4); }
-        .plan-table-wrap { overflow-x: auto; margin: 0 0 18px; -webkit-overflow-scrolling: touch; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; }
+        .plan-table-wrap { overflow-x: auto; margin: 0 0 18px; -webkit-overflow-scrolling: touch; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-solid); }
         .plan-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        .plan-table th, .plan-table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
-        .plan-table th { color: #64748b; font-weight: 600; font-size: 12px; background: #f8fafc; white-space: nowrap; }
+        .plan-table th, .plan-table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--divider); vertical-align: top; }
+        .plan-table th { color: var(--muted); font-weight: 600; font-size: 12px; background: rgba(255,255,255,0.06); white-space: nowrap; }
         .plan-table tr:last-child td { border-bottom: none; }
-        .plan-table tr.plan-row--current td { background: #eff6ff; }
+        .plan-table tr.plan-row--current td { background: rgba(37, 99, 235, 0.10); }
         .plan-table .col-name { font-weight: 600; color: #0f172a; min-width: 6rem; }
         .plan-table .col-action { white-space: nowrap; width: 1%; }
         .plan-badge--current { display: inline-block; background: #dbeafe; color: #1d4ed8; padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; }
@@ -371,37 +433,7 @@ function account_center_plan_quota(array $p)
         .subscription-history-wrap .plan-table td { padding: 10px 12px; }
         .subscription-history-wrap tr.sub-history-row--current td { background: #eff6ff; }
 
-        /* 深色模式（簡易覆寫，避免大改現有樣式） */
-        body[data-theme="dark"] {
-            color: #e2e8f0;
-            background-color: #0b1220;
-            background-image:
-                radial-gradient(ellipse 90% 70% at 100% 0%, rgba(37, 99, 235, 0.18), transparent 55%),
-                radial-gradient(ellipse 70% 55% at 0% 100%, rgba(14, 165, 233, 0.12), transparent 50%),
-                linear-gradient(165deg, #0b1220 0%, #0b1220 45%, #060a12 100%);
-        }
-        body[data-theme="dark"] .card,
-        body[data-theme="dark"] .plan-table-wrap {
-            background: rgba(15, 23, 42, 0.92);
-            border-color: rgba(51, 65, 85, 0.9);
-            box-shadow: 0 2px 12px rgba(0,0,0,.35);
-        }
-        body[data-theme="dark"] .muted,
-        body[data-theme="dark"] .hint { color: rgba(226,232,240,0.72); }
-        body[data-theme="dark"] a { color: #93c5fd; }
-        body[data-theme="dark"] input,
-        body[data-theme="dark"] select {
-            background: rgba(2, 6, 23, 0.85);
-            color: #e2e8f0;
-            border-color: rgba(51, 65, 85, 0.9);
-        }
-        body[data-theme="dark"] .plan-table th {
-            background: rgba(2, 6, 23, 0.7);
-            color: rgba(226,232,240,0.75);
-            border-bottom-color: rgba(51, 65, 85, 0.9);
-        }
-        body[data-theme="dark"] .plan-table td { border-bottom-color: rgba(51, 65, 85, 0.6); }
-        body[data-theme="dark"] .plan-table tr.plan-row--current td { background: rgba(30, 58, 138, 0.25); }
+        /* 依 theme token 顯示，不再用零散的硬覆寫 */
     </style>
 </head>
 <body data-theme="<?= htmlspecialchars($uiTheme, ENT_QUOTES, 'UTF-8') ?>">

@@ -623,19 +623,61 @@ $uncategorizedChannelCount = (int) $stmt->fetchColumn();
 <title>TubeLog</title>
 
 <style>
+/* Theme tokens（首頁也用同一套色票，接近你提供的參考圖） */
+:root {
+    --bg: #f1f5f9;
+    --bg-grad-1: radial-gradient(ellipse 90% 70% at 100% 0%, rgba(59, 130, 246, 0.14), transparent 55%);
+    --bg-grad-2: radial-gradient(ellipse 70% 55% at 0% 100%, rgba(14, 165, 233, 0.10), transparent 50%);
+    --bg-grad-3: linear-gradient(165deg, #f8fafc 0%, #f1f5f9 45%, #eef2f7 100%);
+
+    --text: #0f172a;
+    --muted: #64748b;
+    --muted-2: #94a3b8;
+    --link: #2563eb;
+
+    --surface: #ffffff;
+    --border: rgba(226, 232, 240, 0.9);
+    --shadow: 0 3px 8px rgba(0,0,0,0.05);
+
+    --control-bg: #ffffff;
+    --control-border: #e2e8f0;
+    --control-text: #0f172a;
+
+    --chip-bg: rgba(15, 23, 42, 0.06);
+    --chip-hover: rgba(15, 23, 42, 0.10);
+}
+body[data-theme="dark"] {
+    --bg: #111213;
+    --bg-grad-1: radial-gradient(ellipse 90% 70% at 100% 0%, rgba(255, 255, 255, 0.03), transparent 60%);
+    --bg-grad-2: radial-gradient(ellipse 70% 55% at 0% 100%, rgba(255, 255, 255, 0.02), transparent 55%);
+    --bg-grad-3: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+
+    --text: #e7e7e7;
+    --muted: rgba(231, 231, 231, 0.70);
+    --muted-2: rgba(231, 231, 231, 0.55);
+    --link: #9cc3ff;
+
+    --surface: #202123;
+    --border: rgba(255, 255, 255, 0.08);
+    --shadow: 0 10px 30px rgba(0,0,0,0.35);
+
+    --control-bg: rgba(17, 18, 19, 0.85);
+    --control-border: rgba(255, 255, 255, 0.10);
+    --control-text: #e7e7e7;
+
+    --chip-bg: rgba(255, 255, 255, 0.06);
+    --chip-hover: rgba(255, 255, 255, 0.10);
+}
+
 body {
     font-family: Arial, "Segoe UI", system-ui, "PingFang TC", "Microsoft JhengHei", sans-serif;
     margin: 0;
     min-height: 100vh;
     box-sizing: border-box;
     padding: 30px;
-    color: #0f172a;
-    background-color: #f1f5f9;
-    background-image:
-        url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%2394a3b8' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/svg%3E"),
-        radial-gradient(ellipse 90% 70% at 100% 0%, rgba(59, 130, 246, 0.14), transparent 55%),
-        radial-gradient(ellipse 70% 55% at 0% 100%, rgba(14, 165, 233, 0.1), transparent 50%),
-        linear-gradient(165deg, #f8fafc 0%, #f1f5f9 45%, #eef2f7 100%);
+    color: var(--text);
+    background-color: var(--bg);
+    background-image: var(--bg-grad-1), var(--bg-grad-2), var(--bg-grad-3);
 }
 
 /* KPI + 快速操作（橫列：左直向 KPI、右快速操作） */
@@ -672,10 +714,11 @@ body {
 }
 .card {
     flex: 1;
-    background: #fff;
+    background: var(--surface);
     padding: 20px;
     border-radius: 12px;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.05);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
 }
 .cards--vertical .card {
     flex: 0 0 auto;
@@ -690,7 +733,7 @@ body {
 .cards--vertical .card p {
     margin: 4px 0 0;
     font-size: 12px;
-    color: #888;
+    color: var(--muted);
 }
 .card--kpi-unwatched .kpi-clear-unwatched-btn {
     margin-top: 8px;
@@ -743,9 +786,11 @@ body {
 }
 
 .section {
-    background: #fff;
+    background: var(--surface);
     padding: 20px;
     border-radius: 12px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
 }
 
 /* 影片 */
@@ -756,9 +801,10 @@ body {
 }
 .video .video-text a {
     text-decoration: none;
-    color: #333;
+    color: var(--text);
     font-weight: bold;
 }
+.video .video-text a:hover { color: var(--link); }
 .video-media {
     position: relative;
     width: 120px;
@@ -925,36 +971,38 @@ body {
     padding: 8px 12px;
     font-size: 14px;
     font-family: inherit;
-    border: 1px solid #cce0f0;
+    border: 1px solid var(--control-border);
     border-radius: 8px;
-    background: #fff;
+    background: var(--control-bg);
+    color: var(--control-text);
     box-sizing: border-box;
 }
 .dash-video-search::placeholder { color: #999; }
+.dash-video-search::placeholder { color: var(--muted-2); }
 .dash-video-search:focus {
     outline: none;
-    border-color: #0077cc;
-    box-shadow: 0 0 0 2px rgba(0,119,204,0.15);
+    border-color: rgba(156, 195, 255, 0.45);
+    box-shadow: 0 0 0 2px rgba(156, 195, 255, 0.18);
 }
 
 .video-tab-toggle {
     display: inline-flex;
     flex-wrap: wrap;
-    border: 1px solid #cce0f0;
+    border: 1px solid var(--control-border);
     border-radius: 8px;
     overflow: hidden;
-    background: #f0f6fb;
+    background: var(--control-bg);
 }
 .video-tab {
     border: none;
     background: transparent;
-    color: #333;
+    color: var(--text);
     padding: 8px 14px;
     font-size: 14px;
     cursor: pointer;
     font-family: inherit;
 }
-.video-tab:hover { background: rgba(0,119,204,0.08); }
+.video-tab:hover { background: var(--chip-bg); }
 .video-tab.active {
     background: #0077cc;
     color: #fff;
@@ -962,7 +1010,7 @@ body {
 .video-tab.active:hover { background: #0066b3; }
 
 .video-empty {
-    color: #888;
+    color: var(--muted);
     font-size: 14px;
     margin: 0;
 }
@@ -992,9 +1040,9 @@ body {
     margin: 12px 0 0;
 }
 .dash-load-more-row .btn-outline {
-    background: #fff;
-    border: 1px solid #cce0f0;
-    color: #0077cc;
+    background: var(--control-bg);
+    border: 1px solid var(--control-border);
+    color: var(--link);
     padding: 8px 16px;
     border-radius: 8px;
     cursor: pointer;
@@ -1002,7 +1050,7 @@ body {
     font-family: inherit;
 }
 .dash-load-more-row .btn-outline:hover {
-    background: #f0f6fb;
+    background: rgba(255,255,255,0.06);
 }
 
 /* 已訂閱頻道：圖上名下、多欄填滿 */
@@ -1038,16 +1086,16 @@ body {
     font-size: 13px;
     font-weight: bold;
     line-height: 1.35;
-    color: #333;
+    color: var(--text);
     text-decoration: none;
     word-break: break-word;
 }
-.channel-card-name:hover { color: #0077cc; }
+.channel-card-name:hover { color: var(--link); }
 .channel-card-cat {
     display: block;
     margin-top: 4px;
     font-size: 12px;
-    color: #888;
+    color: var(--muted);
     line-height: 1.3;
 }
 .channel-card-category-select--overlay {
@@ -1201,7 +1249,7 @@ body {
 .quick-form-block label {
     display: block;
     font-size: 13px;
-    color: #555;
+    color: var(--muted);
     margin-bottom: 4px;
 }
 .quick-form-block input[type="text"],
@@ -1209,11 +1257,13 @@ body {
     width: 100%;
     max-width: 480px;
     padding: 8px 10px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--control-border);
     border-radius: 6px;
     box-sizing: border-box;
     font-family: inherit;
     font-size: 14px;
+    background: var(--control-bg);
+    color: var(--control-text);
 }
 .quick-form-block .form-row { margin-bottom: 10px; }
 .quick-form-block button[type="submit"] {
@@ -1228,21 +1278,21 @@ body {
 .quick-form-block button[type="submit"]:hover { background: #0066b3; }
 .quick-form-hint {
     font-size: 12px;
-    color: #888;
+    color: var(--muted);
     margin-top: 6px;
 }
 
 /* 分類 */
 .category {
     display: inline-block;
-    background: #eee;
-    color: #333;
+    background: var(--chip-bg);
+    color: var(--text);
     padding: 6px 10px;
     margin: 5px;
     border-radius: 6px;
     text-decoration: none;
 }
-.category:hover { background: #e0e0e0; }
+.category:hover { background: var(--chip-hover); }
 .category.category--active {
     background: #0077cc;
     color: #fff;
@@ -1251,18 +1301,18 @@ body {
 
 .category-filter-banner {
     font-size: 14px;
-    color: #475569;
+    color: var(--muted);
     margin: 0 0 14px;
     padding: 10px 12px;
-    background: #f1f5f9;
+    background: rgba(255,255,255,0.06);
     border-radius: 8px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border);
 }
-.category-filter-banner strong { color: #0f172a; }
+.category-filter-banner strong { color: var(--text); }
 .category-filter-clear {
     margin-left: 10px;
     font-size: 13px;
-    color: #0077cc;
+    color: var(--link);
     text-decoration: none;
 }
 .category-filter-clear:hover { text-decoration: underline; }
@@ -1307,8 +1357,8 @@ body {
     display: none;
     align-items: center;
     gap: 6px;
-    background: #eef6fc;
-    border: 1px dashed #0077cc;
+    background: rgba(255,255,255,0.06);
+    border: 1px dashed rgba(156, 195, 255, 0.45);
     padding: 6px 10px;
     border-radius: 8px;
     font-size: 14px;
@@ -1330,7 +1380,9 @@ body {
     min-width: 4em;
     max-width: 12em;
     padding: 4px 6px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--control-border);
+    background: var(--control-bg);
+    color: var(--control-text);
     border-radius: 4px;
     font-size: 13px;
     font-family: inherit;
@@ -1376,7 +1428,9 @@ body {
     min-width: 120px;
     max-width: 280px;
     padding: 6px 10px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--control-border);
+    background: var(--control-bg);
+    color: var(--control-text);
     border-radius: 8px;
     font-size: 14px;
     font-family: inherit;
@@ -1386,12 +1440,12 @@ body {
 }
 
 .btn-outline {
-    background: #fff;
-    color: #0077cc;
-    border: 1px solid #0077cc;
+    background: var(--control-bg);
+    color: var(--link);
+    border: 1px solid var(--control-border);
 }
 .btn-outline:hover {
-    background: #f0f7fc;
+    background: rgba(255,255,255,0.06);
 }
 .btn-outline.is-active {
     background: #0077cc;
@@ -1420,29 +1474,8 @@ body {
 }
 .site-header h1 { margin: 0; font-size: 1.5rem; }
 .site-user { font-size: 14px; color: #555; }
-.site-user a { color: #0077cc; margin-left: 12px; }
-
-/* 深色模式（簡易覆寫） */
-body[data-theme="dark"] {
-    background-color: #0b1220;
-    color: #e2e8f0;
-}
-body[data-theme="dark"] .site-user { color: rgba(226,232,240,0.75); }
-body[data-theme="dark"] a { color: #93c5fd; }
-body[data-theme="dark"] .card {
-    background: rgba(15, 23, 42, 0.92) !important;
-    border-color: rgba(51, 65, 85, 0.9) !important;
-    box-shadow: 0 2px 12px rgba(0,0,0,.35) !important;
-}
-body[data-theme="dark"] input,
-body[data-theme="dark"] select,
-body[data-theme="dark"] textarea {
-    background: rgba(2, 6, 23, 0.85);
-    color: #e2e8f0;
-    border-color: rgba(51, 65, 85, 0.9);
-}
-body[data-theme="dark"] .muted,
-body[data-theme="dark"] .hint { color: rgba(226,232,240,0.72) !important; }
+.site-user { color: var(--muted); }
+.site-user a { color: var(--link); margin-left: 12px; }
 </style>
 
 </head>
