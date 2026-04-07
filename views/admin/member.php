@@ -56,6 +56,7 @@ function admin_member_billing_label($iv)
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <title>後台 — 會員 #<?= (int) $targetId ?></title>
     <style>
         *, *::before, *::after { box-sizing: border-box; }

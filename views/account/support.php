@@ -27,6 +27,7 @@ $qrSets = array(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#06c755">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <title>客服資訊 — YouTube Tracker</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; }

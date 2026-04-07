@@ -7,6 +7,8 @@ auth_require_test_lab();
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0f172a">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 <title>測試｜YouTube Tracker</title>
 <style>
 body { font-family: Arial, sans-serif; background: #f5f7fa; padding: 24px; max-width: 560px; margin: 0 auto; }

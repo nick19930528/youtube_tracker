@@ -42,6 +42,7 @@ function admin_members_gender_label($g)
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <title>後台 — 會員列表</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; }

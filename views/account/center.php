@@ -182,6 +182,7 @@ function account_center_plan_quota(array $p)
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#f1f5f9">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <title>會員中心 — YouTube Tracker</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; }

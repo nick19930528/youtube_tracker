@@ -94,6 +94,8 @@ if (!payment_minimal_is_configured()) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <title>MPG 付款 — YouTube Tracker</title>
     <?php if ($form && !headers_sent()) {
         header('Cache-Control: no-store');
