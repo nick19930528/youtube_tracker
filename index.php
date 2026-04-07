@@ -1459,9 +1459,15 @@ body {
 .channel {
     margin-bottom: 8px;
 }
+.fav-channel-row a {
+    color: var(--text);
+    text-decoration: none;
+    font-weight: 600;
+}
+.fav-channel-row a:hover { color: var(--link); }
 .fav-channel-row .fav-channel-meta {
     font-size: 12px;
-    color: #666;
+    color: var(--muted-2);
     margin-left: 4px;
 }
 .site-header {
@@ -1475,6 +1481,7 @@ body {
 .site-header h1 { margin: 0; font-size: 1.5rem; }
 .site-user { font-size: 14px; color: #555; }
 .site-user { color: var(--muted); }
+.site-user .site-user-meta { color: var(--muted-2); }
 .site-user a { color: var(--link); margin-left: 12px; }
 </style>
 
@@ -1485,7 +1492,7 @@ body {
     <h1>🎬 YouTube Dashboard</h1>
     <div class="site-user">
         <?= htmlspecialchars($currentAuthUser['name'] !== '' ? $currentAuthUser['name'] : $currentAuthUser['email']) ?>
-        <span style="color:#999;">(<?= htmlspecialchars($currentAuthUser['email']) ?>)</span>
+        <span class="site-user-meta">(<?= htmlspecialchars($currentAuthUser['email']) ?>)</span>
         <a href="index.php?page=account">會員中心</a>
         <?php if (auth_is_admin()): ?>
         <a href="index.php?page=admin">後台會員</a>
