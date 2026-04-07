@@ -22,8 +22,8 @@ function fetch_new_videos_run_for_user(PDO $pdo, int $uid): string
         $stmt->execute([$uid]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         if ($row) {
-            $fetchDays = max(1, min(730, (int) $row['d']));
-            $fetchMaxPerChannel = max(1, min(100, (int) $row['m']));
+            $fetchDays = max(1, min(7, (int) $row['d']));
+            $fetchMaxPerChannel = max(1, min(3, (int) $row['m']));
         }
     } catch (Throwable $e) {
         // 未執行 migration 時沿用預設 7 天、每頻道 1 支

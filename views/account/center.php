@@ -432,11 +432,11 @@ function account_center_plan_quota(array $p)
         <form method="post" action="index.php?page=account">
             <input type="hidden" name="save_fetch_prefs" value="1">
             <label for="fetch_max_age_days">最近幾天內發布</label>
-            <input type="number" class="input-narrow" id="fetch_max_age_days" name="fetch_max_age_days" min="1" max="730" required value="<?= (int) $fetchMaxAgeDays ?>">
-            <p class="hint">只處理此天數內發布的影片（預設 7）。</p>
+            <input type="number" class="input-narrow" id="fetch_max_age_days" name="fetch_max_age_days" min="1" max="7" required value="<?= (int) $fetchMaxAgeDays ?>">
+            <p class="hint">只處理此天數內發布的影片（上限 7；預設 7）。</p>
             <label for="fetch_max_per_channel" style="margin-top: 14px;">每個頻道每次最多新增</label>
-            <input type="number" class="input-narrow" id="fetch_max_per_channel" name="fetch_max_per_channel" min="1" max="100" required value="<?= (int) $fetchMaxPerChannel ?>">
-            <p class="hint">單次執行時，每個頻道最多成功加入幾支新影片（預設 1）。</p>
+            <input type="number" class="input-narrow" id="fetch_max_per_channel" name="fetch_max_per_channel" min="1" max="3" required value="<?= (int) $fetchMaxPerChannel ?>">
+            <p class="hint">單次執行時，每個頻道最多成功加入幾支新影片（上限 3；預設 1）。</p>
             <button type="submit">儲存抓新影片設定</button>
         </form>
         <p class="hint" style="margin-bottom: 0;">若儲存失敗，請確認已執行 migration <code>008_users_fetch_prefs.sql</code>。</p>

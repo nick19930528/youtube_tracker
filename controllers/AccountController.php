@@ -95,13 +95,13 @@ class AccountController
     }
 
     /**
-     * @param int $maxAgeDays 1–730
-     * @param int $maxPerChannel 1–100
+     * @param int $maxAgeDays 1–7
+     * @param int $maxPerChannel 1–3
      */
     public function updateFetchPrefs($userId, $maxAgeDays, $maxPerChannel)
     {
-        $d = max(1, min(730, (int) $maxAgeDays));
-        $m = max(1, min(100, (int) $maxPerChannel));
+        $d = max(1, min(7, (int) $maxAgeDays));
+        $m = max(1, min(3, (int) $maxPerChannel));
         try {
             $stmt = $this->pdo->prepare('UPDATE users SET fetch_max_age_days = ?, fetch_max_per_channel = ? WHERE id = ?');
             return (bool) $stmt->execute([$d, $m, $userId]);
