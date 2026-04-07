@@ -71,6 +71,39 @@ if ($redirect !== '') {
     $forgotHref .= '&redirect=' . rawurlencode($redirect);
 }
 $pageTitle = $authPage === 'register' ? '註冊' : ($authPage === 'forgot_password' ? '忘記密碼' : '登入');
+
+// 首頁（登入畫面）資訊：平台功能與方案費用（從 DB 讀取，失敗則不顯示價目表）
+$planRowsPublic = array();
+if ($authPage !== 'forgot_password') {
+    try {
+        $pdoPublic = (new Database())->getConnection();
+        $planRowsPublic = $pdoPublic
+            ->query('SELECT name, slug, price_cents, currency, billing_interval, quota_max_channels, quota_max_videos_per_list FROM subscription_plans WHERE is_active = 1 ORDER BY sort_order ASC, id ASC')
+            ->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {
+        $planRowsPublic = array();
+    }
+}
+
+function auth_public_billing_unit($iv)
+{
+    $iv = (string)$iv;
+    if ($iv === 'month') return '月';
+    if ($iv === 'year') return '年';
+    if ($iv === 'free') return '免費';
+    return $iv !== '' ? $iv : '—';
+}
+
+function auth_public_price_label(array $p)
+{
+    $cents = isset($p['price_cents']) ? (int)$p['price_cents'] : 0;
+    $cur = isset($p['currency']) ? (string)$p['currency'] : 'TWD';
+    $iv = isset($p['billing_interval']) ? (string)$p['billing_interval'] : '';
+    if ($cents <= 0 || $iv === 'free') {
+        return '免費';
+    }
+    return $cur . ' ' . number_format($cents / 100, 0) . '／' . auth_public_billing_unit($iv);
+}
 ?>
 <!DOCTYPE html>
 <html lang="zh-Hant">
@@ -323,6 +356,65 @@ $pageTitle = $authPage === 'register' ? '註冊' : ($authPage === 'forgot_passwo
         .auth-panels { position: relative; }
         .auth-panel { display: none; }
         .auth-panel.is-active { display: block; }
+        .home-info {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(148, 163, 184, 0.35);
+        }
+        .home-info h2 {
+            margin: 0 0 10px;
+            font-size: 0.98rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .home-info p {
+            margin: 0 0 12px;
+            font-size: 0.88rem;
+            line-height: 1.55;
+            color: #475569;
+        }
+        .feature-list {
+            margin: 0;
+            padding-left: 18px;
+            color: #334155;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        .feature-list li { margin: 6px 0; }
+        .plan-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+            font-size: 0.88rem;
+            background: rgba(255,255,255,0.7);
+            border: 1px solid rgba(148,163,184,0.35);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .plan-table th, .plan-table td {
+            padding: 10px 10px;
+            border-bottom: 1px solid rgba(148,163,184,0.25);
+            text-align: left;
+            vertical-align: top;
+        }
+        .plan-table th {
+            background: rgba(241,245,249,0.9);
+            color: #334155;
+            font-weight: 700;
+            font-size: 0.82rem;
+            letter-spacing: 0.02em;
+        }
+        .plan-table tr:last-child td { border-bottom: none; }
+        .pill {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            background: rgba(37,99,235,0.12);
+            color: #1d4ed8;
+        }
+        .muted-small { font-size: 0.8rem; color: #64748b; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -472,6 +564,52 @@ $pageTitle = $authPage === 'register' ? '註冊' : ($authPage === 'forgot_passwo
             <p style="margin:16px 0 0;text-align:center;">
                 <a class="auth-link" href="<?= htmlspecialchars($loginTabHref) ?>">前往登入</a>
             </p>
+            <?php endif; ?>
+
+            <?php if ($authPage !== 'forgot_password'): ?>
+            <section class="home-info" aria-label="平台介紹與方案費用">
+                <h2>平台功能</h2>
+                <p>集中管理你追蹤的 YouTube 頻道與影片，並用「待看／已看」清單維持進度。</p>
+                <ul class="feature-list">
+                    <li><strong>頻道管理</strong>：新增、整理分類、快速瀏覽頻道資訊</li>
+                    <li><strong>待看清單</strong>：收藏影片、標記已看，自動維持清單上限</li>
+                    <li><strong>抓新影片</strong>：依 RSS 抓取近期影片，避免重複加入</li>
+                    <li><strong>訂閱方案</strong>：依方案調整可追蹤頻道數與清單筆數</li>
+                </ul>
+
+                <?php if (!empty($planRowsPublic)): ?>
+                    <h2 style="margin-top:14px;">方案費用</h2>
+                    <table class="plan-table" role="table" aria-label="方案費用表">
+                        <thead>
+                        <tr>
+                            <th>方案</th>
+                            <th>費用</th>
+                            <th>額度</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <?php foreach ($planRowsPublic as $p): ?>
+                            <?php
+                                $ch = isset($p['quota_max_channels']) ? (int)$p['quota_max_channels'] : 0;
+                                $vid = isset($p['quota_max_videos_per_list']) ? (int)$p['quota_max_videos_per_list'] : 0;
+                                $quota = ($ch > 0 || $vid > 0)
+                                    ? ('頻道 ' . ($ch > 0 ? $ch : '—') . '；清單 ' . ($vid > 0 ? $vid : '—'))
+                                    : '依系統設定';
+                            ?>
+                            <tr>
+                                <td>
+                                    <span class="pill"><?= htmlspecialchars((string)($p['name'] ?? '')) ?></span>
+                                    <div class="muted-small"><?= htmlspecialchars((string)($p['slug'] ?? '')) ?></div>
+                                </td>
+                                <td><?= htmlspecialchars(auth_public_price_label($p)) ?></td>
+                                <td><?= htmlspecialchars($quota) ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                    <p class="muted-small">提示：方案內容以實際系統設定為準；登入後可在會員中心查看完整資訊。</p>
+                <?php endif; ?>
+            </section>
             <?php endif; ?>
         </div>
     </main>
