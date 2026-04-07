@@ -111,6 +111,7 @@ function auth_public_price_label(array $p)
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#0f172a">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <title><?= htmlspecialchars($pageTitle) ?> — YouTube Tracker</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; }
