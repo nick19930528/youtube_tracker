@@ -3,23 +3,10 @@ require_once __DIR__ . '/../../config/bootstrap.php';
 auth_require_login();
 
 $assetBase = 'assets/line/';
-$qrSets = array(
-    array(
-        'file' => 'line-qr-large.png',
-        'title' => '大尺寸',
-        'hint' => '適合海報、看板、實體文宣列印。',
-    ),
-    array(
-        'file' => 'line-qr-medium.png',
-        'title' => '中尺寸',
-        'hint' => '適合網頁內文、電子報、簡報等。',
-    ),
-    array(
-        'file' => 'line-qr-small.png',
-        'title' => '小尺寸',
-        'hint' => '適合名片、頁尾、側欄等精簡區塊。',
-    ),
-);
+$qrFile = 'line-qr-medium.png';
+$qrSrc = $assetBase . $qrFile;
+$qrPathFs = __DIR__ . '/../../' . $qrSrc;
+$hasQr = is_file($qrPathFs);
 ?>
 <!DOCTYPE html>
 <html lang="zh-Hant">
@@ -97,18 +84,14 @@ $qrSets = array(
             border-bottom: 1px solid #e2e8f0;
             padding-bottom: 12px;
         }
-        .qr-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 20px;
-            margin-top: 8px;
-        }
         .qr-item {
             text-align: center;
             padding: 16px;
             border-radius: 14px;
             background: #f8fafc;
             border: 1px solid #e2e8f0;
+            max-width: 420px;
+            margin: 0 auto;
         }
         .qr-item h3 {
             margin: 0 0 6px;
@@ -123,7 +106,7 @@ $qrSets = array(
         }
         .qr-item img {
             width: 100%;
-            max-width: 240px;
+            max-width: 260px;
             height: auto;
             border-radius: 8px;
             background: #fff;
@@ -156,25 +139,15 @@ $qrSets = array(
     </div>
 
     <div class="card">
-        <h2>加入好友 QR Code（三種尺寸）</h2>
-        <p class="muted" style="margin-top:0;">內容相同，僅解析度與檔案大小不同；請依您的使用場景選擇合適圖檔下載或截圖使用。</p>
-        <div class="qr-grid">
-            <?php foreach ($qrSets as $item): ?>
-                <?php
-                $src = $assetBase . $item['file'];
-                $pathFs = __DIR__ . '/../../' . $src;
-                $hasImg = is_file($pathFs);
-                ?>
-                <div class="qr-item">
-                    <h3><?= htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8') ?></h3>
-                    <p class="hint"><?= htmlspecialchars($item['hint'], ENT_QUOTES, 'UTF-8') ?></p>
-                    <?php if ($hasImg): ?>
-                        <img src="<?= htmlspecialchars($src, ENT_QUOTES, 'UTF-8') ?>" width="240" height="240" alt="LINE 官方帳號 QR Code（<?= htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8') ?>）" loading="lazy">
-                    <?php else: ?>
-                        <p class="hint" style="color:#991b1b;">圖檔未就緒：請將 <code><?= htmlspecialchars($item['file'], ENT_QUOTES, 'UTF-8') ?></code> 放於專案 <code>assets/line/</code> 目錄。</p>
-                    <?php endif; ?>
-                </div>
-            <?php endforeach; ?>
+        <h2>加入好友 QR Code</h2>
+        <div class="qr-item">
+            <h3>建議使用（中尺寸）</h3>
+            <p class="hint">適合網頁內文、電子報、簡報等。</p>
+            <?php if ($hasQr): ?>
+                <img src="<?= htmlspecialchars($qrSrc, ENT_QUOTES, 'UTF-8') ?>" width="260" height="260" alt="LINE 官方帳號 QR Code" loading="lazy">
+            <?php else: ?>
+                <p class="hint" style="color:#991b1b;">圖檔未就緒：請將 <code><?= htmlspecialchars($qrFile, ENT_QUOTES, 'UTF-8') ?></code> 放於專案 <code>assets/line/</code> 目錄。</p>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -185,7 +158,7 @@ $qrSets = array(
             <li>點選「加入好友」→「行動條碼」，掃描上方 QR Code。</li>
             <li>加入官方帳號後，即可在聊天室留言，我們會於服務時間內回覆。</li>
         </ol>
-        <p class="muted">若掃描失敗，請確認網路連線正常，或改試其他尺寸的 QR 圖檔。</p>
+        <p class="muted">若掃描失敗，請確認網路連線正常後再試一次。</p>
     </div>
 </div>
 </body>

@@ -106,10 +106,6 @@ if ($page !== 'home') {
             require __DIR__ . '/views/account/center.php';
             break;
 
-        case 'support':
-            require __DIR__ . '/views/account/support.php';
-            break;
-
         case 'admin':
         case 'admin_members':
             require __DIR__ . '/views/admin/members.php';
@@ -134,6 +130,11 @@ if ($page !== 'home') {
 
     exit;
 }
+
+// 客服（儀表板頁尾顯示；不再使用獨立頁面）
+$supportQrSrc = 'assets/line/line-qr-medium.png';
+$supportQrFs = __DIR__ . '/' . $supportQrSrc;
+$supportHasQr = is_file($supportQrFs);
 
 $allowedQuickNotices = ['channel_ok', 'channel_err', 'channel_limit', 'video_ok', 'video_err', 'verify_ok'];
 $quickNotice = isset($_GET['notice']) && in_array($_GET['notice'], $allowedQuickNotices, true)
@@ -1424,7 +1425,6 @@ body {
         <?= htmlspecialchars($currentAuthUser['name'] !== '' ? $currentAuthUser['name'] : $currentAuthUser['email']) ?>
         <span style="color:#999;">(<?= htmlspecialchars($currentAuthUser['email']) ?>)</span>
         <a href="index.php?page=account">會員中心</a>
-        <a href="index.php?page=support">客服</a>
         <?php if (auth_is_admin()): ?>
         <a href="index.php?page=admin">後台會員</a>
         <?php endif; ?>
@@ -2319,6 +2319,37 @@ body {
     });
 })();
 </script>
+
+<footer style="max-width:1100px;margin:24px auto 0;padding:18px 0 36px;border-top:1px solid rgba(148,163,184,0.35);">
+    <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;">
+        <div style="min-width:260px;flex:1;">
+            <h2 style="margin:0 0 8px;font-size:1.05rem;">客服（LINE 官方帳號）</h2>
+            <p style="margin:0;color:#475569;line-height:1.6;font-size:0.95rem;">
+                若有使用問題、帳務或功能建議，歡迎加入好友與我們聯繫。
+            </p>
+            <p style="margin:10px 0 0;color:#64748b;font-size:0.88rem;">
+                打開 LINE → 加入好友 → 行動條碼 → 掃描右側 QR Code。
+            </p>
+        </div>
+        <div style="width:220px;flex:0 0 auto;text-align:center;">
+            <?php if ($supportHasQr): ?>
+                <img
+                    src="<?= htmlspecialchars($supportQrSrc, ENT_QUOTES, 'UTF-8') ?>"
+                    alt="LINE 官方帳號 QR Code"
+                    width="200"
+                    height="200"
+                    style="width:200px;height:200px;border-radius:12px;background:#fff;border:1px solid rgba(226,232,240,0.95);box-shadow:0 6px 18px rgba(15,23,42,0.08);"
+                    loading="lazy"
+                >
+            <?php else: ?>
+                <div style="padding:14px;border:1px dashed #cbd5e1;border-radius:12px;color:#64748b;font-size:0.88rem;line-height:1.5;">
+                    QR 圖檔未就緒：請放置<br>
+                    <code style="color:#0f172a;"><?= htmlspecialchars($supportQrSrc, ENT_QUOTES, 'UTF-8') ?></code>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+</footer>
 
 </body>
 </html>
