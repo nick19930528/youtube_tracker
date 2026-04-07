@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/bootstrap.php';
 auth_require_test_lab();
+$uiTheme = (isset($_SESSION['ui_theme']) && $_SESSION['ui_theme'] === 'dark') ? 'dark' : 'light';
 ?>
 <!DOCTYPE html>
 <html lang="zh-Hant">
@@ -32,9 +33,13 @@ h1 { font-size: 1.25rem; margin: 0 0 8px; }
 .nav-top { margin-bottom: 20px; font-size: 14px; }
 .nav-top a { color: #0077cc; margin-right: 14px; text-decoration: none; }
 .nav-top a:hover { text-decoration: underline; }
+
+body[data-theme="dark"] { background: #0b1220; color: #e2e8f0; }
+body[data-theme="dark"] .lead { color: rgba(226,232,240,0.72); }
+body[data-theme="dark"] .nav-top a { color: #93c5fd; }
 </style>
 </head>
-<body>
+<body data-theme="<?= htmlspecialchars($uiTheme, ENT_QUOTES, 'UTF-8') ?>">
 <nav class="nav-top">
     <a href="index.php">🏠 首頁</a>
     <a href="index.php?page=account">會員中心</a>

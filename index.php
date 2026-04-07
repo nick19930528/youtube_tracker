@@ -136,6 +136,9 @@ $supportQrSrc = 'assets/line/line-qr-medium.png';
 $supportQrFs = __DIR__ . '/' . $supportQrSrc;
 $supportHasQr = is_file($supportQrFs);
 
+// 外觀模式（會員偏好）
+$uiTheme = (isset($_SESSION['ui_theme']) && $_SESSION['ui_theme'] === 'dark') ? 'dark' : 'light';
+
 $allowedQuickNotices = ['channel_ok', 'channel_err', 'channel_limit', 'video_ok', 'video_err', 'verify_ok'];
 $quickNotice = isset($_GET['notice']) && in_array($_GET['notice'], $allowedQuickNotices, true)
     ? $_GET['notice']
@@ -1418,10 +1421,32 @@ body {
 .site-header h1 { margin: 0; font-size: 1.5rem; }
 .site-user { font-size: 14px; color: #555; }
 .site-user a { color: #0077cc; margin-left: 12px; }
+
+/* 深色模式（簡易覆寫） */
+body[data-theme="dark"] {
+    background-color: #0b1220;
+    color: #e2e8f0;
+}
+body[data-theme="dark"] .site-user { color: rgba(226,232,240,0.75); }
+body[data-theme="dark"] a { color: #93c5fd; }
+body[data-theme="dark"] .card {
+    background: rgba(15, 23, 42, 0.92) !important;
+    border-color: rgba(51, 65, 85, 0.9) !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,.35) !important;
+}
+body[data-theme="dark"] input,
+body[data-theme="dark"] select,
+body[data-theme="dark"] textarea {
+    background: rgba(2, 6, 23, 0.85);
+    color: #e2e8f0;
+    border-color: rgba(51, 65, 85, 0.9);
+}
+body[data-theme="dark"] .muted,
+body[data-theme="dark"] .hint { color: rgba(226,232,240,0.72) !important; }
 </style>
 
 </head>
-<body>
+<body data-theme="<?= htmlspecialchars($uiTheme, ENT_QUOTES, 'UTF-8') ?>">
 
 <header class="site-header">
     <h1>🎬 YouTube Dashboard</h1>

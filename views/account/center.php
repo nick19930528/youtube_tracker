@@ -11,6 +11,16 @@ $ctrl = new AccountController($pdo);
 $notice = isset($_GET['notice']) ? (string)$_GET['notice'] : '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['save_ui_theme'])) {
+        $theme = isset($_POST['ui_theme']) ? (string) $_POST['ui_theme'] : 'light';
+        if ($ctrl->updateUiTheme($uid, $theme)) {
+            $_SESSION['ui_theme'] = ($theme === 'dark') ? 'dark' : 'light';
+            header('Location: index.php?page=account&notice=ui_theme_ok');
+            exit;
+        }
+        header('Location: index.php?page=account&notice=ui_theme_err');
+        exit;
+    }
     if (isset($_POST['save_dash_pref'])) {
         $auto = (isset($_POST['dash_auto_load']) && (string)$_POST['dash_auto_load'] === '1') ? 1 : 0;
         if ($ctrl->updateDashAutoLoad($uid, $auto)) {
@@ -120,6 +130,10 @@ if ($notice === 'profile_ok') {
     $noticeText = '無法寄出驗證信，請確認郵件設定（環境變數）或稍後再試。';
 } elseif ($notice === 'verify_resent_skip') {
     $noticeText = '此帳號已驗證或無需重送。';
+} elseif ($notice === 'ui_theme_ok') {
+    $noticeText = '已更新外觀模式。';
+} elseif ($notice === 'ui_theme_err') {
+    $noticeText = '無法更新外觀模式，請稍後再試。';
 }
 
 $selGender = array_key_exists('gender', $profile) && $profile['gender'] !== null && $profile['gender'] !== ''
@@ -128,6 +142,7 @@ $selGender = array_key_exists('gender', $profile) && $profile['gender'] !== null
 $dashAutoLoad = (isset($profile['dash_auto_load']) && (int)$profile['dash_auto_load'] === 0) ? 0 : 1;
 $fetchMaxAgeDays = isset($profile['fetch_max_age_days']) ? (int) $profile['fetch_max_age_days'] : 7;
 $fetchMaxPerChannel = isset($profile['fetch_max_per_channel']) ? (int) $profile['fetch_max_per_channel'] : 1;
+$uiTheme = (isset($profile['ui_theme']) && $profile['ui_theme'] === 'dark') ? 'dark' : 'light';
 
 require_once __DIR__ . '/../../config/plan_limits.php';
 require_once __DIR__ . '/../../config/payment_minimal.php';
@@ -355,9 +370,41 @@ function account_center_plan_quota(array $p)
         .subscription-history-wrap .plan-table th,
         .subscription-history-wrap .plan-table td { padding: 10px 12px; }
         .subscription-history-wrap tr.sub-history-row--current td { background: #eff6ff; }
+
+        /* 深色模式（簡易覆寫，避免大改現有樣式） */
+        body[data-theme="dark"] {
+            color: #e2e8f0;
+            background-color: #0b1220;
+            background-image:
+                radial-gradient(ellipse 90% 70% at 100% 0%, rgba(37, 99, 235, 0.18), transparent 55%),
+                radial-gradient(ellipse 70% 55% at 0% 100%, rgba(14, 165, 233, 0.12), transparent 50%),
+                linear-gradient(165deg, #0b1220 0%, #0b1220 45%, #060a12 100%);
+        }
+        body[data-theme="dark"] .card,
+        body[data-theme="dark"] .plan-table-wrap {
+            background: rgba(15, 23, 42, 0.92);
+            border-color: rgba(51, 65, 85, 0.9);
+            box-shadow: 0 2px 12px rgba(0,0,0,.35);
+        }
+        body[data-theme="dark"] .muted,
+        body[data-theme="dark"] .hint { color: rgba(226,232,240,0.72); }
+        body[data-theme="dark"] a { color: #93c5fd; }
+        body[data-theme="dark"] input,
+        body[data-theme="dark"] select {
+            background: rgba(2, 6, 23, 0.85);
+            color: #e2e8f0;
+            border-color: rgba(51, 65, 85, 0.9);
+        }
+        body[data-theme="dark"] .plan-table th {
+            background: rgba(2, 6, 23, 0.7);
+            color: rgba(226,232,240,0.75);
+            border-bottom-color: rgba(51, 65, 85, 0.9);
+        }
+        body[data-theme="dark"] .plan-table td { border-bottom-color: rgba(51, 65, 85, 0.6); }
+        body[data-theme="dark"] .plan-table tr.plan-row--current td { background: rgba(30, 58, 138, 0.25); }
     </style>
 </head>
-<body>
+<body data-theme="<?= htmlspecialchars($uiTheme, ENT_QUOTES, 'UTF-8') ?>">
 <header class="account-top">
     <a class="account-back" href="index.php"><span aria-hidden="true">←</span> 回首頁</a>
     <?php if (auth_is_admin()): ?>
@@ -428,6 +475,28 @@ function account_center_plan_quota(array $p)
             <button type="submit">儲存載入方式</button>
         </form>
         <p class="hint" style="margin-bottom: 0;">變更後重新整理首頁即生效；若資料庫尚未執行 migration <code>007_users_dash_auto_load.sql</code>，請先由管理員新增欄位。</p>
+    </div>
+
+    <div class="card">
+        <h2>外觀模式</h2>
+        <p class="muted" style="margin-top: 0;">晚上使用可切換深色模式；此設定會儲存到您的帳號。</p>
+        <form method="post" action="index.php?page=account">
+            <input type="hidden" name="save_ui_theme" value="1">
+            <div class="row" style="margin-bottom: 10px;">
+                <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-weight: normal;">
+                    <input type="radio" name="ui_theme" value="light"<?= $uiTheme === 'light' ? ' checked' : '' ?> style="margin-top: 3px;">
+                    <span><strong>淺色</strong> — 明亮背景，適合白天。</span>
+                </label>
+            </div>
+            <div class="row" style="margin-bottom: 14px;">
+                <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-weight: normal;">
+                    <input type="radio" name="ui_theme" value="dark"<?= $uiTheme === 'dark' ? ' checked' : '' ?> style="margin-top: 3px;">
+                    <span><strong>深色</strong> — 深色背景，適合夜間。</span>
+                </label>
+            </div>
+            <button type="submit">儲存外觀模式</button>
+        </form>
+        <p class="hint" style="margin-bottom: 0;">若儲存失敗，請確認已執行 migration <code>013_users_ui_theme.sql</code>。</p>
     </div>
 
     <div class="card">

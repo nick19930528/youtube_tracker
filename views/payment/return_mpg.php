@@ -3,6 +3,8 @@ require_once __DIR__ . '/../../config/bootstrap.php';
 require_once __DIR__ . '/../../config/payment_minimal.php';
 require_once __DIR__ . '/../../lib/PaymentMinimal.php';
 
+$uiTheme = (isset($_SESSION['ui_theme']) && $_SESSION['ui_theme'] === 'dark') ? 'dark' : 'light';
+
 $tradeHex = '';
 if (isset($_POST['TradeInfo'])) {
     $tradeHex = (string)$_POST['TradeInfo'];
@@ -39,9 +41,14 @@ if ($tradeHex !== '' && payment_minimal_is_configured()) {
         .wrap { max-width: 520px; margin: 0 auto; }
         .card { background: #fff; border-radius: 12px; padding: 22px 24px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
         .muted { color: #64748b; font-size: 14px; }
+
+        body[data-theme="dark"] { background: #0b1220; color: #e2e8f0; }
+        body[data-theme="dark"] .card { background: rgba(15, 23, 42, 0.92); box-shadow: 0 2px 12px rgba(0,0,0,.35); }
+        body[data-theme="dark"] a { color: #93c5fd; }
+        body[data-theme="dark"] .muted { color: rgba(226,232,240,0.72); }
     </style>
 </head>
-<body>
+<body data-theme="<?= htmlspecialchars($uiTheme, ENT_QUOTES, 'UTF-8') ?>">
 <div class="wrap">
     <div class="card">
         <?php if ($tradeHex === ''): ?>

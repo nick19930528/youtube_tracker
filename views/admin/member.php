@@ -10,6 +10,8 @@ $pdo = (new Database())->getConnection();
 $acct = new AccountController($pdo);
 $admin = new AdminController($pdo);
 
+$uiTheme = (isset($_SESSION['ui_theme']) && $_SESSION['ui_theme'] === 'dark') ? 'dark' : 'light';
+
 $targetId = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 if ($targetId < 1) {
     header('Location: index.php?page=admin');
@@ -103,9 +105,19 @@ function admin_member_billing_label($iv)
         .pill-watched { background: #dcfce7; color: #166534; }
         .pill-unwatched { background: #fef3c7; color: #92400e; }
         .muted { color: #94a3b8; font-size: 13px; }
+
+        body[data-theme="dark"] { background: #0b1220; color: #e2e8f0; }
+        body[data-theme="dark"] section { background: rgba(15, 23, 42, 0.92); }
+        body[data-theme="dark"] section h2 { color: rgba(226,232,240,0.88); }
+        body[data-theme="dark"] .dl-grid dt,
+        body[data-theme="dark"] .data-table th { color: rgba(226,232,240,0.72); }
+        body[data-theme="dark"] .data-table th { background: rgba(2, 6, 23, 0.7); }
+        body[data-theme="dark"] .data-table th, body[data-theme="dark"] .data-table td { border-bottom-color: rgba(51, 65, 85, 0.75); }
+        body[data-theme="dark"] .admin-nav a,
+        body[data-theme="dark"] .data-table a { color: #93c5fd; }
     </style>
 </head>
-<body>
+<body data-theme="<?= htmlspecialchars($uiTheme, ENT_QUOTES, 'UTF-8') ?>">
 <div class="admin-wrap">
     <div class="admin-top">
         <h1>會員詳情 #<?= (int) $targetId ?> — <?= htmlspecialchars($profile['name'] !== '' ? $profile['name'] : $profile['email'], ENT_QUOTES, 'UTF-8') ?></h1>

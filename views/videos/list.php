@@ -23,6 +23,8 @@ if (!in_array($orderDir, ['asc', 'desc'])) $orderDir = 'desc';
 $toggleDir = ($orderDir === 'asc') ? 'desc' : 'asc';
 $baseUrl = "index.php?page=videos&watched={$isWatched}" . ($keyword ? "&keyword=" . urlencode($keyword) : "");
 
+$uiTheme = (isset($_SESSION['ui_theme']) && $_SESSION['ui_theme'] === 'dark') ? 'dark' : 'light';
+
 $videos = $keyword
     ? $controller->search($isWatched, $keyword, $videoCap)
     : $controller->list($isWatched, $orderBy, $orderDir, $videoCap);
@@ -79,9 +81,19 @@ uasort($groupedVideos, function ($a, $b) {
         img { max-width: 120px; }
         .controls { margin-bottom: 20px; }
         .group-header { background-color: #f0f0f0; font-weight: bold; }
+
+        body[data-theme="dark"] { background: #0b1220; color: #e2e8f0; }
+        body[data-theme="dark"] a { color: #93c5fd; }
+        body[data-theme="dark"] th, body[data-theme="dark"] td { border-color: rgba(51, 65, 85, 0.9); }
+        body[data-theme="dark"] .group-header { background-color: rgba(30, 41, 59, 0.85); }
+        body[data-theme="dark"] input, body[data-theme="dark"] select {
+            background: rgba(2, 6, 23, 0.85);
+            color: #e2e8f0;
+            border: 1px solid rgba(51, 65, 85, 0.9);
+        }
     </style>
 </head>
-<body>
+<body data-theme="<?= htmlspecialchars($uiTheme, ENT_QUOTES, 'UTF-8') ?>">
     <h1><?= $isWatched ? '✅ 已看清單' : '📋 待看清單' ?></h1>
 
     <div class="controls">

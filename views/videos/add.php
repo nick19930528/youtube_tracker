@@ -7,6 +7,8 @@ $pdo = (new Database())->getConnection();
 $uid = auth_user_id();
 $controller = new VideoController($pdo, $uid);
 
+$uiTheme = (isset($_SESSION['ui_theme']) && $_SESSION['ui_theme'] === 'dark') ? 'dark' : 'light';
+
 $message = "";
 
 // 擷取 YouTube 影片 ID
@@ -111,8 +113,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="apple-mobile-web-app-title" content="TubeLog">
     <meta name="application-name" content="TubeLog">
     <title>新增影片</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        body[data-theme="dark"] { background: #0b1220; color: #e2e8f0; }
+        body[data-theme="dark"] a { color: #93c5fd; }
+        body[data-theme="dark"] input, body[data-theme="dark"] button {
+            background: rgba(2, 6, 23, 0.85);
+            color: #e2e8f0;
+            border: 1px solid rgba(51, 65, 85, 0.9);
+        }
+    </style>
 </head>
-<body>
+<body data-theme="<?= htmlspecialchars($uiTheme, ENT_QUOTES, 'UTF-8') ?>">
     <h1>➕ 新增 YouTube 影片</h1>
 
     <!-- ✅ 導覽按鈕 -->

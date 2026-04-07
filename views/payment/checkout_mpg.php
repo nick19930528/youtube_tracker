@@ -8,6 +8,8 @@ $pdo = (new Database())->getConnection();
 $uid = auth_user_id();
 $user = auth_user();
 
+$uiTheme = (isset($_SESSION['ui_theme']) && $_SESSION['ui_theme'] === 'dark') ? 'dark' : 'light';
+
 $error = '';
 $form = null;
 
@@ -111,9 +113,14 @@ if (!payment_minimal_is_configured()) {
         .err { color: #991b1b; }
         .muted { color: #64748b; font-size: 14px; margin-top: 10px; }
         .btn { display: inline-block; margin-top: 16px; padding: 14px 22px; background: #0369a1; color: #fff !important; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; }
+
+        body[data-theme="dark"] { background: #0b1220; color: #e2e8f0; }
+        body[data-theme="dark"] .card { background: rgba(15, 23, 42, 0.92); box-shadow: 0 2px 12px rgba(0,0,0,.35); }
+        body[data-theme="dark"] a { color: #93c5fd; }
+        body[data-theme="dark"] .muted { color: rgba(226,232,240,0.72); }
     </style>
 </head>
-<body>
+<body data-theme="<?= htmlspecialchars($uiTheme, ENT_QUOTES, 'UTF-8') ?>">
 <div class="wrap">
     <p><a href="index.php?page=account">← 會員中心</a></p>
     <div class="card">

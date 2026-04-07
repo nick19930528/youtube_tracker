@@ -7,6 +7,8 @@ require_once __DIR__ . '/../../controllers/AdminController.php';
 $pdo = (new Database())->getConnection();
 $ctrl = new AdminController($pdo);
 
+$uiTheme = (isset($_SESSION['ui_theme']) && $_SESSION['ui_theme'] === 'dark') ? 'dark' : 'light';
+
 $q = isset($_GET['q']) ? trim((string) $_GET['q']) : '';
 $page = isset($_GET['p']) ? max(1, (int) $_GET['p']) : 1;
 $perPage = 25;
@@ -89,9 +91,24 @@ function admin_members_gender_label($g)
         .pager { margin-top: 16px; font-size: 14px; color: #64748b; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
         .pager a { color: #0369a1; }
         .muted { color: #94a3b8; font-size: 13px; }
+
+        body[data-theme="dark"] { background: #0b1220; color: #e2e8f0; }
+        body[data-theme="dark"] .admin-table-wrap { background: rgba(15, 23, 42, 0.92); }
+        body[data-theme="dark"] .admin-table th { background: rgba(2, 6, 23, 0.7); color: rgba(226,232,240,0.75); }
+        body[data-theme="dark"] .admin-table th, body[data-theme="dark"] .admin-table td { border-bottom-color: rgba(51, 65, 85, 0.75); }
+        body[data-theme="dark"] .admin-nav a,
+        body[data-theme="dark"] .admin-table a,
+        body[data-theme="dark"] .pager a { color: #93c5fd; }
+        body[data-theme="dark"] .muted,
+        body[data-theme="dark"] .pager { color: rgba(226,232,240,0.72); }
+        body[data-theme="dark"] .search-form input[type="search"] {
+            background: rgba(2, 6, 23, 0.85);
+            color: #e2e8f0;
+            border-color: rgba(51, 65, 85, 0.9);
+        }
     </style>
 </head>
-<body>
+<body data-theme="<?= htmlspecialchars($uiTheme, ENT_QUOTES, 'UTF-8') ?>">
 <div class="admin-wrap">
     <div class="admin-top">
         <h1>後台 — 會員列表</h1>

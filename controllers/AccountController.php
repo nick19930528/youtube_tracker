@@ -14,7 +14,7 @@ class AccountController
     public function getProfile($userId)
     {
         try {
-            $stmt = $this->pdo->prepare('SELECT id, email, name, gender, COALESCE(dash_auto_load, 1) AS dash_auto_load, COALESCE(fetch_max_age_days, 7) AS fetch_max_age_days, COALESCE(fetch_max_per_channel, 1) AS fetch_max_per_channel, email_verified_at, created_at FROM users WHERE id = ? LIMIT 1');
+            $stmt = $this->pdo->prepare('SELECT id, email, name, gender, COALESCE(dash_auto_load, 1) AS dash_auto_load, COALESCE(fetch_max_age_days, 7) AS fetch_max_age_days, COALESCE(fetch_max_per_channel, 1) AS fetch_max_per_channel, COALESCE(ui_theme, \'light\') AS ui_theme, email_verified_at, created_at FROM users WHERE id = ? LIMIT 1');
             $stmt->execute(array($userId));
         } catch (Throwable $e) {
             $stmt = $this->pdo->prepare('SELECT id, email, name, gender, COALESCE(dash_auto_load, 1) AS dash_auto_load, email_verified_at, created_at FROM users WHERE id = ? LIMIT 1');
@@ -27,6 +27,9 @@ class AccountController
         if (!array_key_exists('fetch_max_age_days', $row)) {
             $row['fetch_max_age_days'] = 7;
             $row['fetch_max_per_channel'] = 1;
+        }
+        if (!array_key_exists('ui_theme', $row) || ($row['ui_theme'] !== 'dark' && $row['ui_theme'] !== 'light')) {
+            $row['ui_theme'] = 'light';
         }
         return $row;
     }
@@ -105,6 +108,18 @@ class AccountController
         try {
             $stmt = $this->pdo->prepare('UPDATE users SET fetch_max_age_days = ?, fetch_max_per_channel = ? WHERE id = ?');
             return (bool) $stmt->execute([$d, $m, $userId]);
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    public function updateUiTheme($userId, $theme)
+    {
+        $theme = (string)$theme;
+        $v = ($theme === 'dark') ? 'dark' : 'light';
+        try {
+            $stmt = $this->pdo->prepare('UPDATE users SET ui_theme = ? WHERE id = ?');
+            return (bool) $stmt->execute(array($v, $userId));
         } catch (Throwable $e) {
             return false;
         }
