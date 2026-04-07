@@ -229,6 +229,14 @@ function account_center_plan_quota(array $p)
             --control-text: #0f172a;
             --focus-ring: 0 0 0 3px rgba(59, 130, 246, 0.2);
 
+            /* 訂閱方案（表格/徽章） */
+            --table-head-bg: rgba(15, 23, 42, 0.03);
+            --table-head-text: #475569;
+            --table-current-bg: rgba(37, 99, 235, 0.10);
+            --badge-current-bg: rgba(37, 99, 235, 0.12);
+            --badge-current-text: #1d4ed8;
+            --sub-history-current-bg: #eff6ff;
+
             --ok-bg: #ecfdf5;
             --ok-border: #a7f3d0;
             --ok-text: #065f46;
@@ -259,6 +267,14 @@ function account_center_plan_quota(array $p)
             --control-border: rgba(255, 255, 255, 0.10);
             --control-text: #e7e7e7;
             --focus-ring: 0 0 0 3px rgba(156, 195, 255, 0.18);
+
+            /* 訂閱方案（表格/徽章） */
+            --table-head-bg: rgba(255, 255, 255, 0.07);
+            --table-head-text: rgba(231, 231, 231, 0.86);
+            --table-current-bg: rgba(79, 147, 255, 0.16);
+            --badge-current-bg: rgba(79, 147, 255, 0.16);
+            --badge-current-text: #cfe3ff;
+            --sub-history-current-bg: rgba(79, 147, 255, 0.16);
 
             --ok-bg: rgba(16, 185, 129, 0.12);
             --ok-border: rgba(16, 185, 129, 0.25);
@@ -407,12 +423,12 @@ function account_center_plan_quota(array $p)
         .plan-table-wrap { overflow-x: auto; margin: 0 0 18px; -webkit-overflow-scrolling: touch; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-solid); }
         .plan-table { width: 100%; border-collapse: collapse; font-size: 14px; }
         .plan-table th, .plan-table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--divider); vertical-align: top; }
-        .plan-table th { color: var(--muted); font-weight: 600; font-size: 12px; background: rgba(255,255,255,0.06); white-space: nowrap; }
+        .plan-table th { color: var(--table-head-text); font-weight: 600; font-size: 12px; background: var(--table-head-bg); white-space: nowrap; }
         .plan-table tr:last-child td { border-bottom: none; }
-        .plan-table tr.plan-row--current td { background: rgba(37, 99, 235, 0.10); }
-        .plan-table .col-name { font-weight: 600; color: #0f172a; min-width: 6rem; }
+        .plan-table tr.plan-row--current td { background: var(--table-current-bg); }
+        .plan-table .col-name { font-weight: 600; color: var(--text); min-width: 6rem; }
         .plan-table .col-action { white-space: nowrap; width: 1%; }
-        .plan-badge--current { display: inline-block; background: #dbeafe; color: #1d4ed8; padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; }
+        .plan-badge--current { display: inline-block; background: var(--badge-current-bg); color: var(--badge-current-text); padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; }
         .btn-upgrade-sm {
             display: inline-block;
             padding: 7px 14px;
@@ -431,7 +447,9 @@ function account_center_plan_quota(array $p)
         .subscription-history-wrap .plan-table { font-size: 13px; }
         .subscription-history-wrap .plan-table th,
         .subscription-history-wrap .plan-table td { padding: 10px 12px; }
-        .subscription-history-wrap tr.sub-history-row--current td { background: #eff6ff; }
+        .subscription-history-wrap tr.sub-history-row--current td { background: var(--sub-history-current-bg); }
+        .sub-history-title { margin: 0 0 10px; font-size: 13px; font-weight: 600; color: var(--text); }
+        .sub-history-meta { color: var(--muted); font-size: 12px; line-height: 1.45; }
 
         /* 依 theme token 顯示，不再用零散的硬覆寫 */
     </style>
@@ -648,7 +666,7 @@ function account_center_plan_quota(array $p)
 
         <?php if (count($subHistory) > 0): ?>
             <div class="subscription-history-wrap">
-                <p style="margin:0 0 10px;font-size:13px;font-weight:600;color:#334155;">歷史訂閱紀錄</p>
+                <p class="sub-history-title">歷史訂閱紀錄</p>
                 <p class="muted" style="margin:0 0 12px;line-height:1.5;">以下為帳號內所有訂閱紀錄（含免費註冊與升級）；與上方「目前訂閱詳情」對應者列為淺藍底色。</p>
                 <div class="plan-table-wrap">
                     <table class="plan-table" role="table" aria-label="歷史訂閱紀錄">
@@ -674,7 +692,7 @@ function account_center_plan_quota(array $p)
                                     </td>
                                     <td><?= htmlspecialchars(subscription_status_label_member($h['status'], isset($h['slug']) ? $h['slug'] : '')) ?></td>
                                     <td><?= htmlspecialchars(account_billing_label($h['billing_interval'] ?? '')) ?></td>
-                                    <td style="color:#475569;font-size:12px;line-height:1.45;">
+                                    <td class="sub-history-meta">
                                         <?php if (!empty($h['current_period_start']) || !empty($h['current_period_end'])): ?>
                                             <?= htmlspecialchars($h['current_period_start'] ? $h['current_period_start'] : '—') ?>
                                             ～
@@ -686,7 +704,7 @@ function account_center_plan_quota(array $p)
                                             <br><span class="muted">週期結束後取消續訂</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td style="color:#475569;font-size:12px;line-height:1.45;">
+                                    <td class="sub-history-meta">
                                         <?= htmlspecialchars($h['created_at'] ?? '') ?>
                                         <?php
                                         $ua = $h['updated_at'] ?? '';
