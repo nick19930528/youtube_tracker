@@ -29,7 +29,11 @@ if ($tradeHex !== '' && payment_minimal_is_configured()) {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#0f172a">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
-    <title>付款結果</title>
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="manifest" href="site.webmanifest">
+    <meta name="apple-mobile-web-app-title" content="TubeLog">
+    <meta name="application-name" content="TubeLog">
+    <title>付款結果｜TubeLog</title>
     <style>
         body { font-family: Arial, sans-serif; background: #f5f7fa; margin: 0; padding: 24px; color: #333; }
         .wrap { max-width: 520px; margin: 0 auto; }

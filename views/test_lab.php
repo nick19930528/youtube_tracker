@@ -9,7 +9,11 @@ auth_require_test_lab();
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0f172a">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
-<title>測試｜YouTube Tracker</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<meta name="apple-mobile-web-app-title" content="TubeLog">
+<meta name="application-name" content="TubeLog">
+<title>測試｜TubeLog</title>
 <style>
 body { font-family: Arial, sans-serif; background: #f5f7fa; padding: 24px; max-width: 560px; margin: 0 auto; }
 h1 { font-size: 1.25rem; margin: 0 0 8px; }

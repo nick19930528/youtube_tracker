@@ -67,6 +67,10 @@ uasort($groupedVideos, function ($a, $b) {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#0f172a">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="manifest" href="site.webmanifest">
+    <meta name="apple-mobile-web-app-title" content="TubeLog">
+    <meta name="application-name" content="TubeLog">
     <title><?= $isWatched ? '✅ 已看清單' : '📋 待看清單' ?></title>
     <style>
         body { font-family: Arial; margin: 20px; }

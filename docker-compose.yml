@@ -1,4 +1,4 @@
-# YouTube Tracker — 僅 Web 容器，連線「正式／遠端」MySQL
+# TubeLog — 僅 Web 容器，連線「正式／遠端」MySQL
 # 使用方式：
 #   1. 複製 .env.example 為 .env（可覆寫下方預設）
 #   2. docker compose build && docker compose up -d
@@ -28,6 +28,6 @@ services:
       MAIL_SMTP_USER: ${MAIL_SMTP_USER:-anytime333b1@gmail.com}
       MAIL_SMTP_PASSWORD: ${MAIL_SMTP_PASSWORD:-zqbgtduxbeymhbuz}
       MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-anytime333b1@gmail.com}
-      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-YouTube Tracker}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-TubeLog}
     volumes:
       - .:/var/www/html

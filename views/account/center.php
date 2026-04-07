@@ -183,7 +183,11 @@ function account_center_plan_quota(array $p)
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#f1f5f9">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
-    <title>會員中心 — YouTube Tracker</title>
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="manifest" href="site.webmanifest">
+    <meta name="apple-mobile-web-app-title" content="TubeLog">
+    <meta name="application-name" content="TubeLog">
+    <title>會員中心 — TubeLog</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; }
         body {

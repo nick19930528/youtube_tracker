@@ -112,7 +112,11 @@ function auth_public_price_label(array $p)
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#0f172a">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
-    <title><?= htmlspecialchars($pageTitle) ?> — YouTube Tracker</title>
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="manifest" href="site.webmanifest">
+    <meta name="apple-mobile-web-app-title" content="TubeLog">
+    <meta name="application-name" content="TubeLog">
+    <title><?= htmlspecialchars($pageTitle) ?> — TubeLog</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; }
         body {
@@ -424,7 +428,7 @@ function auth_public_price_label(array $p)
         <div class="auth-card">
             <div class="auth-brand">
                 <div class="auth-brand-icon" aria-hidden="true">▶</div>
-                <h1>YouTube Tracker</h1>
+                <h1>TubeLog</h1>
                 <p>登入或註冊，管理訂閱與待看清單</p>
             </div>
             <?php if ($authPage !== 'forgot_password'): ?>

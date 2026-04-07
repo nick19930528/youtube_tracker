@@ -43,7 +43,11 @@ function admin_members_gender_label($g)
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
-    <title>後台 — 會員列表</title>
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="manifest" href="site.webmanifest">
+    <meta name="apple-mobile-web-app-title" content="TubeLog">
+    <meta name="application-name" content="TubeLog">
+    <title>後台 — 會員列表｜TubeLog</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; }
         body {

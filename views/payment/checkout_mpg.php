@@ -96,7 +96,11 @@ if (!payment_minimal_is_configured()) {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#0f172a">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
-    <title>MPG 付款 — YouTube Tracker</title>
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="manifest" href="site.webmanifest">
+    <meta name="apple-mobile-web-app-title" content="TubeLog">
+    <meta name="application-name" content="TubeLog">
+    <title>MPG 付款 — TubeLog</title>
     <?php if ($form && !headers_sent()) {
         header('Cache-Control: no-store');
     } ?>

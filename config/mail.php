@@ -67,7 +67,7 @@ function mail_send_verification_email($toEmail, $toName, $verifyToken)
     }
     $fromAddr = trim((string)$fromAddr);
     $fromName = getenv('MAIL_FROM_NAME');
-    $fromName = ($fromName !== false && trim((string)$fromName) !== '') ? trim((string)$fromName) : 'YouTube Tracker';
+    $fromName = ($fromName !== false && trim((string)$fromName) !== '') ? trim((string)$fromName) : 'TubeLog';
 
     $host = getenv('MAIL_SMTP_HOST');
     if ($host === false || trim((string)$host) === '') {
@@ -91,7 +91,7 @@ function mail_send_verification_email($toEmail, $toName, $verifyToken)
         $mail->setFrom($fromAddr, $fromName);
         $mail->addAddress($toEmail, $toName !== '' ? $toName : $toEmail);
         $mail->isHTML(true);
-        $mail->Subject = '請驗證您的 Email — YouTube Tracker';
+        $mail->Subject = '請驗證您的 Email — TubeLog';
         $safeName = htmlspecialchars($toName !== '' ? $toName : '使用者', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $safeLink = htmlspecialchars($link, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $mail->Body = '<p>' . $safeName . ' 您好，</p>'
@@ -126,7 +126,7 @@ function mail_send_temporary_password($toEmail, $toName, $plainPassword)
     }
     $fromAddr = trim((string)$fromAddr);
     $fromName = getenv('MAIL_FROM_NAME');
-    $fromName = ($fromName !== false && trim((string)$fromName) !== '') ? trim((string)$fromName) : 'YouTube Tracker';
+    $fromName = ($fromName !== false && trim((string)$fromName) !== '') ? trim((string)$fromName) : 'TubeLog';
 
     $host = getenv('MAIL_SMTP_HOST');
     if ($host === false || trim((string)$host) === '') {
@@ -153,7 +153,7 @@ function mail_send_temporary_password($toEmail, $toName, $plainPassword)
         $mail->setFrom($fromAddr, $fromName);
         $mail->addAddress($toEmail, $toName !== '' ? $toName : $toEmail);
         $mail->isHTML(true);
-        $mail->Subject = 'YouTube Tracker — 暫時登入密碼';
+        $mail->Subject = 'TubeLog — 暫時登入密碼';
 
         $safeName = htmlspecialchars($toName !== '' ? $toName : '使用者', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $safePass = htmlspecialchars($plainPassword, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');

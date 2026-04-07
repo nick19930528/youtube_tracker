@@ -57,7 +57,11 @@ function admin_member_billing_label($iv)
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
-    <title>後台 — 會員 #<?= (int) $targetId ?></title>
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="manifest" href="site.webmanifest">
+    <meta name="apple-mobile-web-app-title" content="TubeLog">
+    <meta name="application-name" content="TubeLog">
+    <title>後台 — 會員 #<?= (int) $targetId ?>｜TubeLog</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; }
         body {

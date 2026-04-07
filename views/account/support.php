@@ -15,7 +15,11 @@ $hasQr = is_file($qrPathFs);
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#06c755">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
-    <title>客服資訊 — YouTube Tracker</title>
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="manifest" href="site.webmanifest">
+    <meta name="apple-mobile-web-app-title" content="TubeLog">
+    <meta name="application-name" content="TubeLog">
+    <title>客服資訊 — TubeLog</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; }
         body {
