@@ -1,28 +1,54 @@
-# TubeLog — 僅 Web 容器，連線「正式／遠端」MySQL
+# TubeLog — Web + 本機 MySQL（Docker）
 # 使用方式：
 #   1. 複製 .env.example 為 .env（可覆寫下方預設）
 #   2. docker compose build && docker compose up -d
-#   3. 瀏覽器開啟 http://localhost:${WEB_PORT:-8080}
+#   3. 瀏覽器開啟 http://localhost:${WEB_PORT:-8888}
 #
-# 連線參數亦可由 .env 覆寫；請勿將含真實密碼的 .env 提交版控。
-# 若需本機 MySQL 容器，可另建 override 或還原舊版含 db 服務的 compose。
+# MySQL 僅在 compose 內部網路可連（不對主機開 3306／3307）。Web 透過服務名 db
+# 連線。若仍要連遠端 DB，在 .env 將
+# DB_HOST 改為 IP／主機名即可覆寫 compose 預設。
+# 首次啟動會掛入 config/docker_seed_cloud_sql.sql（Cloud SQL 匯出）初始化；
+# 若 schema 有更新，可在主機執行：docker compose exec -T db mysql -u… -p… youtube_tracker < config/migrations/…
+# 匯出為 MySQL 8.x（utf8mb4_0900_ai_ci），故 db 使用官方 mysql:8.4 映像。
 
 services:
+  db:
+    image: mysql:8.4
+    container_name: yttracker-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-devroot}
+      MYSQL_DATABASE: ${DB_NAME:-youtube_tracker}
+      MYSQL_USER: ${DB_USER:-appuser}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-123456}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./config/docker_seed_cloud_sql.sql:/docker-entrypoint-initdb.d/01-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
+
   web:
     build: .
     container_name: yttracker-web
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
-      - "${WEB_PORT:-8080}:80"
+      - "${WEB_PORT:-8888}:80"
     environment:
-      DB_HOST: ${DB_HOST:-35.229.213.53}
+      DB_HOST: ${DB_HOST:-db}
       DB_PORT: ${DB_PORT:-3306}
       DB_NAME: ${DB_NAME:-youtube_tracker}
       DB_USER: ${DB_USER:-appuser}
       DB_PASSWORD: ${DB_PASSWORD:-123456}
       DB_SOCKET: ${DB_SOCKET:-}
       CLOUD_SQL_CONNECTION_NAME: ${CLOUD_SQL_CONNECTION_NAME:-}
-      APP_BASE_URL: ${APP_BASE_URL:-https://tubelog.xyz}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8888}
       MAIL_SMTP_HOST: ${MAIL_SMTP_HOST:-smtp.gmail.com}
       MAIL_SMTP_PORT: ${MAIL_SMTP_PORT:-587}
       MAIL_SMTP_USER: ${MAIL_SMTP_USER:-anytime333b1@gmail.com}
@@ -31,3 +57,6 @@ services:
       MAIL_FROM_NAME: ${MAIL_FROM_NAME:-TubeLog}
     volumes:
       - .:/var/www/html
+
+volumes:
+  db_data:
