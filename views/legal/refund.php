@@ -1,7 +1,9 @@
 <?php
 require_once __DIR__ . '/../../config/bootstrap.php';
 require_once __DIR__ . '/legal_links.inc.php';
+require_once __DIR__ . '/legal_theme.inc.php';
 
+$uiTheme = legal_ui_theme();
 $isLoggedIn = auth_check();
 $backHref = $isLoggedIn ? 'index.php' : 'index.php?page=login';
 $backLabel = $isLoggedIn ? '回首頁' : '返回登入';
@@ -19,42 +21,9 @@ $docUpdated = '2026/05/16';
     <meta name="apple-mobile-web-app-title" content="TubeLog">
     <meta name="application-name" content="TubeLog">
     <title>退款政策 — TubeLog</title>
-    <style>
-        *, *::before, *::after { box-sizing: border-box; }
-        body {
-            font-family: "Segoe UI", system-ui, -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif;
-            margin: 0;
-            min-height: 100vh;
-            padding: 0 20px 48px;
-            color: #0f172a;
-            background-color: #f1f5f9;
-            background-image:
-                url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%2394a3b8' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/svg%3E"),
-                radial-gradient(ellipse 90% 70% at 100% 0%, rgba(37, 99, 235, 0.08), transparent 55%),
-                linear-gradient(165deg, #f8fafc 0%, #f1f5f9 100%);
-        }
-        .legal-top { max-width: 760px; margin: 0 auto; padding: 16px 0 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
-        .legal-back { display: inline-flex; align-items: center; gap: 6px; font-size: 0.95rem; font-weight: 600; color: #2563eb; text-decoration: none; padding: 8px 4px; border-radius: 10px; transition: background 0.15s, color 0.15s; }
-        .legal-back:hover { background: rgba(37, 99, 235, 0.08); color: #1d4ed8; }
-        .wrap { max-width: 760px; margin: 0 auto; }
-        .page-head { margin-bottom: 20px; }
-        h1 { font-size: 1.55rem; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.02em; }
-        .meta { color: #64748b; font-size: 0.88rem; margin: 0 0 12px; }
-        .intro { color: #475569; font-size: 0.95rem; line-height: 1.65; margin: 0; }
-        .card { background: rgba(255, 255, 255, 0.97); border: 1px solid rgba(226, 232, 240, 0.95); border-radius: 16px; padding: 22px 24px 26px; margin-bottom: 16px; box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 10px 24px -8px rgba(15, 23, 42, 0.08); }
-        .card h2 { font-size: 1.05rem; font-weight: 700; margin: 0 0 12px; color: #0f172a; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; }
-        .card p, .card li { font-size: 0.92rem; line-height: 1.75; color: #334155; }
-        .card p { margin: 0 0 10px; }
-        .card p:last-child { margin-bottom: 0; }
-        .card ol, .card ul { margin: 8px 0 0; padding-left: 1.35rem; }
-        .card li { margin-bottom: 6px; }
-        .card li:last-child { margin-bottom: 0; }
-        .legal-footer { margin-top: 8px; padding-top: 16px; border-top: 1px solid rgba(148, 163, 184, 0.35); font-size: 0.88rem; color: #64748b; line-height: 1.6; }
-        .legal-footer a { color: #2563eb; font-weight: 600; text-decoration: none; }
-        .legal-footer a:hover { text-decoration: underline; }
-    </style>
+    <?php legal_print_styles(false); ?>
 </head>
-<body>
+<body data-theme="<?= htmlspecialchars($uiTheme, ENT_QUOTES, 'UTF-8') ?>">
 <header class="legal-top">
     <a class="legal-back" href="<?= htmlspecialchars($backHref, ENT_QUOTES, 'UTF-8') ?>"><span aria-hidden="true">←</span> <?= htmlspecialchars($backLabel, ENT_QUOTES, 'UTF-8') ?></a>
     <?php if ($isLoggedIn): ?>

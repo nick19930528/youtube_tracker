@@ -15,5 +15,5 @@ function legal_related_links_html(): string
         $parts[] = '<a href="index.php?page=' . htmlspecialchars($item[0], ENT_QUOTES, 'UTF-8') . '">'
             . htmlspecialchars($item[1], ENT_QUOTES, 'UTF-8') . '</a>';
     }
-    return implode(' <span style="color:#94a3b8;">·</span> ', $parts);
+    return implode(' <span class="legal-link-sep">·</span> ', $parts);
 }
