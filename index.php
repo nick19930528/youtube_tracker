@@ -30,6 +30,26 @@ if ($page === 'login' || $page === 'register' || $page === 'forgot_password') {
     exit;
 }
 
+if ($page === 'terms') {
+    require __DIR__ . '/views/legal/terms.php';
+    exit;
+}
+
+if ($page === 'privacy') {
+    require __DIR__ . '/views/legal/privacy.php';
+    exit;
+}
+
+if ($page === 'consumer_rights') {
+    require __DIR__ . '/views/legal/consumer_rights.php';
+    exit;
+}
+
+if ($page === 'refund') {
+    require __DIR__ . '/views/legal/refund.php';
+    exit;
+}
+
 if ($page === 'pay_return') {
     require __DIR__ . '/views/payment/return_mpg.php';
     exit;
@@ -2422,7 +2442,7 @@ body {
 })();
 </script>
 
-<footer style="max-width:1100px;margin:24px auto 0;padding:18px 0 36px;border-top:1px solid rgba(148,163,184,0.35);">
+<footer id="support" style="max-width:1100px;margin:24px auto 0;padding:18px 0 36px;border-top:1px solid rgba(148,163,184,0.35);">
     <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;">
         <div style="min-width:260px;flex:1;">
             <h2 style="margin:0 0 8px;font-size:1.05rem;">客服（LINE 官方帳號）</h2>
@@ -2431,6 +2451,15 @@ body {
             </p>
             <p style="margin:10px 0 0;color:#64748b;font-size:0.88rem;">
                 打開 LINE → 加入好友 → 行動條碼 → 掃描右側 QR Code。
+            </p>
+            <p style="margin:12px 0 0;font-size:0.88rem;line-height:1.65;">
+                <a href="index.php?page=terms" style="color:#2563eb;font-weight:600;text-decoration:none;">服務條款</a>
+                <span style="color:#94a3b8;margin:0 6px;">·</span>
+                <a href="index.php?page=privacy" style="color:#2563eb;font-weight:600;text-decoration:none;">隱私權政策</a>
+                <span style="color:#94a3b8;margin:0 6px;">·</span>
+                <a href="index.php?page=consumer_rights" style="color:#2563eb;font-weight:600;text-decoration:none;">消費者權益</a>
+                <span style="color:#94a3b8;margin:0 6px;">·</span>
+                <a href="index.php?page=refund" style="color:#2563eb;font-weight:600;text-decoration:none;">退款政策</a>
             </p>
         </div>
         <div style="width:220px;flex:0 0 auto;text-align:center;">

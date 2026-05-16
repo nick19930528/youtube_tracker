@@ -420,6 +420,21 @@ function auth_public_price_label(array $p)
             color: #1d4ed8;
         }
         .muted-small { font-size: 0.8rem; color: #64748b; margin-top: 10px; }
+        .auth-legal {
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(148, 163, 184, 0.35);
+            font-size: 0.82rem;
+            color: #64748b;
+            line-height: 1.55;
+            text-align: center;
+        }
+        .auth-legal a {
+            color: #2563eb;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .auth-legal a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -542,6 +557,9 @@ function auth_public_price_label(array $p)
                             <label for="reg-password2">確認密碼</label>
                             <input type="password" id="reg-password2" name="password2" required minlength="8" autocomplete="new-password" placeholder="再次輸入密碼">
                         </div>
+                        <p class="field-hint" style="margin:0 0 14px;">
+                            建立帳號即表示您已閱讀並同意<a href="index.php?page=terms" target="_blank" rel="noopener">服務條款</a>及<a href="index.php?page=privacy" target="_blank" rel="noopener">隱私權政策</a>。
+                        </p>
                         <button type="submit" class="btn-submit">建立帳號</button>
                     </form>
                 </div>
@@ -616,6 +634,15 @@ function auth_public_price_label(array $p)
                 <?php endif; ?>
             </section>
             <?php endif; ?>
+            <p class="auth-legal">
+                <a href="index.php?page=terms">服務條款</a>
+                <span style="color:#94a3b8;margin:0 6px;">·</span>
+                <a href="index.php?page=privacy">隱私權政策</a>
+                <span style="color:#94a3b8;margin:0 6px;">·</span>
+                <a href="index.php?page=consumer_rights">消費者權益</a>
+                <span style="color:#94a3b8;margin:0 6px;">·</span>
+                <a href="index.php?page=refund">退款政策</a>
+            </p>
         </div>
     </main>
 </body>
