@@ -30,6 +30,13 @@ h1 { font-size: 1.25rem; margin: 0 0 8px; }
     font-size: 15px;
 }
 .tools a:hover { background: #005fa3; }
+.tools a.tool-secondary {
+    background: #fff;
+    color: #0f172a;
+    border: 1px solid #cbd5e1;
+}
+.tools a.tool-secondary:hover { background: #f1f5f9; }
+.tool-note { font-size: 12px; color: #64748b; margin: -4px 0 0; line-height: 1.45; }
 .nav-top { margin-bottom: 20px; font-size: 14px; }
 .nav-top a { color: #0077cc; margin-right: 14px; text-decoration: none; }
 .nav-top a:hover { text-decoration: underline; }
@@ -37,6 +44,13 @@ h1 { font-size: 1.25rem; margin: 0 0 8px; }
 body[data-theme="dark"] { background: #0b1220; color: #e2e8f0; }
 body[data-theme="dark"] .lead { color: rgba(226,232,240,0.72); }
 body[data-theme="dark"] .nav-top a { color: #93c5fd; }
+body[data-theme="dark"] .tools a.tool-secondary {
+    background: rgba(15, 23, 42, 0.9);
+    color: #e2e8f0;
+    border-color: rgba(148, 163, 184, 0.35);
+}
+body[data-theme="dark"] .tools a.tool-secondary:hover { background: rgba(30, 41, 59, 0.95); }
+body[data-theme="dark"] .tool-note { color: rgba(226,232,240,0.65); }
 </style>
 </head>
 <body data-theme="<?= htmlspecialchars($uiTheme, ENT_QUOTES, 'UTF-8') ?>">
@@ -56,6 +70,8 @@ body[data-theme="dark"] .nav-top a { color: #93c5fd; }
     <a href="index.php?page=videos&watched=1">✅ 已看清單</a>
     <a href="index.php?page=channels">📺 頻道管理</a>
     <a href="index.php?page=channel_categories">📂 分類管理</a>
+    <a class="tool-secondary" href="index.php?page=test_lab_export_db">💾 導出資料庫（.sql）</a>
+    <p class="tool-note">下載目前連線資料庫的完整備份（表結構與資料）。僅限測試帳號，請勿在正式環境對外開放此連結。</p>
 </div>
 </body>
 </html>

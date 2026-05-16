@@ -139,6 +139,10 @@ if ($page !== 'home') {
             require __DIR__ . '/views/test_lab.php';
             break;
 
+        case 'test_lab_export_db':
+            require __DIR__ . '/scripts/test_lab_export_db.php';
+            break;
+
         case 'pay':
             require __DIR__ . '/views/payment/checkout_mpg.php';
             break;
