@@ -6,15 +6,15 @@
 
 if (!defined('MPG_MERCHANT_ID')) {
     $v = getenv('MPG_MERCHANT_ID');
-    define('MPG_MERCHANT_ID', ($v !== false && $v !== '') ? $v : 'MS3262623440');
+    define('MPG_MERCHANT_ID', ($v !== false && $v !== '') ? $v : 'MS3826904217');
 }
 if (!defined('MPG_HASH_KEY')) {
     $v = getenv('MPG_HASH_KEY');
-    define('MPG_HASH_KEY', ($v !== false && $v !== '') ? $v : 'dkSCsPBNzPlxk4qB8oXUsu1UF5BgrbKH');
+    define('MPG_HASH_KEY', ($v !== false && $v !== '') ? $v : 'zDkCfAiXwCNrM76zmxNsET9B0zFpKvZC');
 }
 if (!defined('MPG_HASH_IV')) {
     $v = getenv('MPG_HASH_IV');
-    define('MPG_HASH_IV', ($v !== false && $v !== '') ? $v : 'PJCqCWlSGCN0B4PC');
+    define('MPG_HASH_IV', ($v !== false && $v !== '') ? $v : 'P2CWCC97rjPJYiuC');
 }
 
 if (!defined('MPG_TEST_MODE')) {
@@ -28,7 +28,7 @@ if (!defined('MPG_TEST_MODE')) {
 }
 
 if (!defined('MPG_PUBLIC_BASE_URL_DEFAULT')) {
-    define('MPG_PUBLIC_BASE_URL_DEFAULT', 'https://miina.shop');
+    define('MPG_PUBLIC_BASE_URL_DEFAULT', 'https://tubelog.xyz');
 }
 
 if (!defined('MPG_PUBLIC_BASE_URL')) {
