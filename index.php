@@ -285,7 +285,7 @@ if ($page === 'home' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $title = $item['snippet']['title'];
         $publishedAt = $item['snippet']['publishedAt'] ?? null;
-        $thumbnailUrl = $item['snippet']['thumbnails']['default']['url'] ?? null;
+        $thumbnailUrl = youtube_best_thumbnail_from_api($item['snippet']['thumbnails'] ?? []);
         $channelName = $item['snippet']['channelTitle'] ?? null;
         $viewCount = $item['statistics']['viewCount'] ?? 0;
         $likeCount = $item['statistics']['likeCount'] ?? 0;

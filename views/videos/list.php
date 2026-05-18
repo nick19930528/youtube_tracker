@@ -173,13 +173,15 @@ uasort($groupedVideos, function ($a, $b) {
                             <td><?= $index + 1 ?></td>
 
                             <td>
-                                <?php if (!empty($video['thumbnail_url'])): ?>
+                                <?php
+                                $thumbAttrs = youtube_video_thumbnail_img_attrs($video['thumbnail_url'] ?? null);
+                                if ($thumbAttrs !== ''): ?>
                                     <?php if (!$video['is_watched']): ?>
                                         <a href="index.php?page=open_video&amp;id=<?= (int)$video['id'] ?>" target="_blank" rel="noopener noreferrer">
-                                            <img src="<?= htmlspecialchars($video['thumbnail_url']) ?>" alt="縮圖">
+                                            <img <?= $thumbAttrs ?> alt="縮圖">
                                         </a>
                                     <?php else: ?>
-                                        <img src="<?= htmlspecialchars($video['thumbnail_url']) ?>" alt="縮圖">
+                                        <img <?= $thumbAttrs ?> alt="縮圖">
                                     <?php endif; ?>
                                 <?php else: ?> -
                                 <?php endif; ?>

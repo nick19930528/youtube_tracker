@@ -70,6 +70,7 @@ function render_dashboard_video_thumb_block(array $v, $mode) {
         return;
     }
     $thumb = trim((string) ($v['thumbnail_url'] ?? ''));
+    $thumbAttrs = youtube_video_thumbnail_img_attrs($thumb !== '' ? $thumb : null);
     if ($mode === 'unwatched') {
         $targetHref = 'index.php?page=open_video&amp;id=' . $vid;
     } else {
@@ -82,9 +83,9 @@ function render_dashboard_video_thumb_block(array $v, $mode) {
     $dur = htmlspecialchars(dash_video_duration_label($v['duration'] ?? 0), ENT_QUOTES, 'UTF-8');
     ?>
     <div class="video-media">
-        <?php if ($thumb !== ''): ?>
+        <?php if ($thumbAttrs !== ''): ?>
             <a href="<?= $targetHref ?>" class="video-thumb-link" target="_blank" rel="noopener noreferrer">
-                <img src="<?= htmlspecialchars($thumb, ENT_QUOTES, 'UTF-8') ?>" alt="">
+                <img <?= $thumbAttrs ?> alt="">
             </a>
         <?php else: ?>
             <a href="<?= $targetHref ?>" class="video-thumb-link video-thumb-link--empty" target="_blank" rel="noopener noreferrer">

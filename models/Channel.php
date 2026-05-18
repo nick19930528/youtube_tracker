@@ -66,7 +66,7 @@ class Channel {
             $subscriberCount = (int)($item['statistics']['subscriberCount'] ?? 0);
             $videoCount = (int)($item['statistics']['videoCount'] ?? 0);
             $description = $item['snippet']['description'] ?? null;
-            $thumbnail = $item['snippet']['thumbnails']['default']['url'] ?? null;
+            $thumbnail = youtube_best_thumbnail_from_api($item['snippet']['thumbnails'] ?? []);
 
             if (!empty($item['snippet']['publishedAt'])) {
                 $timestamp = strtotime($item['snippet']['publishedAt']);

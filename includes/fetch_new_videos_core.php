@@ -2,6 +2,7 @@
 /**
  * 單一會員：RSS 抓新影片（供 CLI / 網頁腳本共用）
  */
+require_once __DIR__ . '/youtube_thumbnails.php';
 require_once __DIR__ . '/../models/Video.php';
 require_once __DIR__ . '/../models/Channel.php';
 
@@ -48,7 +49,7 @@ function fetch_new_videos_run_for_user(PDO $pdo, int $uid): string
             $videoCount = (int)($item['statistics']['videoCount'] ?? 0);
             $description = $item['snippet']['description'] ?? null;
             $publishedAt = !empty($item['snippet']['publishedAt']) ? date('Y-m-d H:i:s', strtotime($item['snippet']['publishedAt'])) : null;
-            $thumbnail = $item['snippet']['thumbnails']['default']['url'] ?? null;
+            $thumbnail = youtube_best_thumbnail_from_api($item['snippet']['thumbnails'] ?? []);
 
             $stmt = $pdo->prepare("
                 UPDATE channels
@@ -133,7 +134,7 @@ function fetch_new_videos_run_for_user(PDO $pdo, int $uid): string
                     $viewCount = (int) ($stats['viewCount'] ?? 0);
                     $likeCount = (int) ($stats['likeCount'] ?? 0);
                     $commentCount = (int) ($stats['commentCount'] ?? 0);
-                    $thumbnailUrl = $snippet['thumbnails']['default']['url'] ?? null;
+                    $thumbnailUrl = youtube_best_thumbnail_from_api($snippet['thumbnails'] ?? []);
 
                     if (!empty($contentDetails['duration'])) {
                         try {
@@ -144,6 +145,9 @@ function fetch_new_videos_run_for_user(PDO $pdo, int $uid): string
                         }
                     }
                 }
+            }
+            if ($thumbnailUrl === null && $videoId) {
+                $thumbnailUrl = youtube_video_thumbnail_url($videoId);
             }
             if ($duration !== null && $duration < 180) {
                 echo "❌略過太短的影片（{$duration} 秒）：$title\n";
