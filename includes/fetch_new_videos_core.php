@@ -49,7 +49,7 @@ function fetch_new_videos_run_for_user(PDO $pdo, int $uid): string
             $videoCount = (int)($item['statistics']['videoCount'] ?? 0);
             $description = $item['snippet']['description'] ?? null;
             $publishedAt = !empty($item['snippet']['publishedAt']) ? date('Y-m-d H:i:s', strtotime($item['snippet']['publishedAt'])) : null;
-            $thumbnail = youtube_best_thumbnail_from_api($item['snippet']['thumbnails'] ?? []);
+            $thumbnail = youtube_best_channel_thumbnail_from_api($item['snippet']['thumbnails'] ?? []);
 
             $stmt = $pdo->prepare("
                 UPDATE channels

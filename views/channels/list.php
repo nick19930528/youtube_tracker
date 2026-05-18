@@ -200,8 +200,10 @@ $uncategorizedListCount = (int) $stU->fetchColumn();
     <?php foreach ($channels as $channel): ?>
         <tr>
             <td>
-                <?php if (!empty($channel['thumbnail_url'])): ?>
-                    <img src="<?= htmlspecialchars($channel['thumbnail_url']) ?>" alt="縮圖" width="80">
+                <?php
+                $chThumbAttrs = youtube_channel_thumbnail_img_attrs($channel['thumbnail_url'] ?? null);
+                if ($chThumbAttrs !== ''): ?>
+                    <img <?= $chThumbAttrs ?> alt="縮圖" width="80">
                 <?php else: ?>-
                 <?php endif; ?>
             </td>

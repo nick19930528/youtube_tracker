@@ -187,8 +187,10 @@ function render_dashboard_channel_card(array $ch, array $categoryOptions = []) {
     ?>
     <article class="channel-card" data-channel-id="<?= $chId ?>">
         <div class="channel-card-media">
-            <?php if (!empty($ch['thumbnail_url'])): ?>
-                <img class="channel-card-thumb" src="<?= htmlspecialchars($ch['thumbnail_url']) ?>" alt="">
+            <?php
+            $chThumbAttrs = youtube_channel_thumbnail_img_attrs($ch['thumbnail_url'] ?? null);
+            if ($chThumbAttrs !== ''): ?>
+                <img class="channel-card-thumb" <?= $chThumbAttrs ?> alt="">
             <?php else: ?>
                 <span class="channel-card-thumb channel-card-thumb--empty" role="img" aria-label="無頻道圖片"></span>
             <?php endif; ?>

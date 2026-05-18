@@ -68,3 +68,67 @@ function youtube_video_thumbnail_img_attrs(?string $storedUrl): string
 
     return 'src="' . $src . '" loading="lazy"';
 }
+
+function youtube_best_channel_thumbnail_from_api(array $thumbnails): ?string
+{
+    foreach (['high', 'medium', 'default'] as $key) {
+        if (!empty($thumbnails[$key]['url'])) {
+            return (string) $thumbnails[$key]['url'];
+        }
+    }
+
+    return null;
+}
+
+/**
+ * 將頻道頭像 URL（ggpht / googleusercontent 的 s88 等）升級為較大尺寸。
+ */
+function youtube_upgrade_channel_thumbnail_url(?string $url, int $targetSize = 240): ?string
+{
+    if ($url === null || trim($url) === '') {
+        return null;
+    }
+
+    $url = trim($url);
+    $targetSize = max(88, min(800, $targetSize));
+
+    if (preg_match('#/s(\d+)(-[^/]*)#', $url, $m)) {
+        $cur = (int) $m[1];
+        if ($cur >= $targetSize) {
+            return $url;
+        }
+
+        return preg_replace('#/s\d+(-[^/]*)#', '/s' . $targetSize . '$1', $url, 1);
+    }
+
+    if (preg_match('#=s(\d+)(?=-c|-k|/|$)#', $url, $m)) {
+        $cur = (int) $m[1];
+        if ($cur >= $targetSize) {
+            return $url;
+        }
+
+        return preg_replace('#=s\d+#', '=s' . $targetSize, $url, 1);
+    }
+
+    return $url;
+}
+
+function youtube_channel_thumbnail_img_attrs(?string $storedUrl): string
+{
+    $med = youtube_upgrade_channel_thumbnail_url($storedUrl, 240);
+    if ($med === null || $med === '') {
+        return '';
+    }
+
+    $high = youtube_upgrade_channel_thumbnail_url($storedUrl, 800);
+    $src = htmlspecialchars($med, ENT_QUOTES, 'UTF-8');
+    if ($high !== null && $high !== '' && $high !== $med) {
+        $srcset = htmlspecialchars($med, ENT_QUOTES, 'UTF-8') . ' 240w, '
+            . htmlspecialchars($high, ENT_QUOTES, 'UTF-8') . ' 800w';
+        $sizes = htmlspecialchars('(max-width: 720px) 50vw, 140px', ENT_QUOTES, 'UTF-8');
+
+        return 'src="' . $src . '" srcset="' . $srcset . '" sizes="' . $sizes . '" loading="lazy"';
+    }
+
+    return 'src="' . $src . '" loading="lazy"';
+}
