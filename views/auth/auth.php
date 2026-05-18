@@ -645,5 +645,6 @@ function auth_public_price_label(array $p)
             </p>
         </div>
     </main>
+<?php require __DIR__ . '/../../includes/back_to_top.inc.php'; ?>
 </body>
 </html>

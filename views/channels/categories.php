@@ -72,3 +72,4 @@ $categories = $controller->getAll();
     <input type="text" name="new_name" placeholder="輸入新分類名稱" required>
     <button type="submit" name="add">新增</button>
 </form>
+<?php require __DIR__ . '/../../includes/back_to_top.inc.php'; ?>

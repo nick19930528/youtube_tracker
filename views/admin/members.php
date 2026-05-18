@@ -178,5 +178,6 @@ function admin_members_gender_label($g)
         </div>
     <?php endif; ?>
 </div>
+<?php require __DIR__ . '/../../includes/back_to_top.inc.php'; ?>
 </body>
 </html>

@@ -64,5 +64,6 @@ if ($tradeHex !== '' && payment_minimal_is_configured()) {
     </div>
     <p style="margin-top:16px;"><a href="index.php">回首頁</a> · <a href="index.php?page=account">會員中心</a></p>
 </div>
+<?php require __DIR__ . '/../../includes/back_to_top.inc.php'; ?>
 </body>
 </html>

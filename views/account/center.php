@@ -727,5 +727,6 @@ function account_center_plan_quota(array $p)
         <?php endif; ?>
     </div>
 </div>
+<?php require __DIR__ . '/../../includes/back_to_top.inc.php'; ?>
 </body>
 </html>

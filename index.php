@@ -2486,5 +2486,6 @@ body {
     </div>
 </footer>
 
+<?php require __DIR__ . '/includes/back_to_top.inc.php'; ?>
 </body>
 </html>

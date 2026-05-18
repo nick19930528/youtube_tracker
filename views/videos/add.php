@@ -166,5 +166,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <input type="text" name="youtube_url" id="youtube_url" size="60" required><br><br>
         <button type="submit">加入清單</button>
     </form>
+<?php require __DIR__ . '/../../includes/back_to_top.inc.php'; ?>
 </body>
 </html>

@@ -147,5 +147,6 @@ if (!payment_minimal_is_configured()) {
         <?php endif; ?>
     </div>
 </div>
+<?php require __DIR__ . '/../../includes/back_to_top.inc.php'; ?>
 </body>
 </html>

@@ -101,5 +101,6 @@ $docUpdated = '2026/05/16';
         與我們聯繫。
     </p>
 </div>
+<?php require __DIR__ . '/../../includes/back_to_top.inc.php'; ?>
 </body>
 </html>

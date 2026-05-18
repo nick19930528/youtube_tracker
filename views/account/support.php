@@ -165,5 +165,6 @@ $hasQr = is_file($qrPathFs);
         <p class="muted">若掃描失敗，請確認網路連線正常後再試一次。</p>
     </div>
 </div>
+<?php require __DIR__ . '/../../includes/back_to_top.inc.php'; ?>
 </body>
 </html>

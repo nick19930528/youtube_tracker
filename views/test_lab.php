@@ -73,5 +73,6 @@ body[data-theme="dark"] .tool-note { color: rgba(226,232,240,0.65); }
     <a class="tool-secondary" href="index.php?page=test_lab_export_db">💾 導出資料庫（.sql）</a>
     <p class="tool-note">下載目前連線資料庫的完整備份（表結構與資料）。僅限測試帳號，請勿在正式環境對外開放此連結。</p>
 </div>
+<?php require __DIR__ . '/../../includes/back_to_top.inc.php'; ?>
 </body>
 </html>

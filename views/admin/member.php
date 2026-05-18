@@ -280,5 +280,6 @@ function admin_member_billing_label($iv)
         <?php endif; ?>
     </section>
 </div>
+<?php require __DIR__ . '/../../includes/back_to_top.inc.php'; ?>
 </body>
 </html>

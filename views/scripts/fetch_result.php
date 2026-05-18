@@ -56,6 +56,7 @@
 <?= htmlspecialchars($output) ?>
     </div>
 
+<?php require __DIR__ . '/../../includes/back_to_top.inc.php'; ?>
 </body>
 
 </html>

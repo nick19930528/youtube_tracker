@@ -252,3 +252,5 @@ $uncategorizedListCount = (int) $stU->fetchColumn();
         </tr>
     <?php endforeach; ?>
 </tbody>
+</table>
+<?php require __DIR__ . '/../../includes/back_to_top.inc.php'; ?>
