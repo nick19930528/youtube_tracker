@@ -48,6 +48,23 @@ function database_resolve_socket_path($socketPath)
     return $socketPath;
 }
 
+/**
+ * PDO DSN 以分號分隔；路徑含冒號時放到最後較穩。
+ * 再做一個無冒號的 /tmp symlink，避免部分 mysqlnd 解析失敗。
+ */
+function database_pdo_socket_for_dsn($socketPath)
+{
+    $socketPath = (string) $socketPath;
+    $link = '/tmp/cloudsql.sock';
+    if (is_link($link) || file_exists($link)) {
+        @unlink($link);
+    }
+    if ($socketPath !== '' && @symlink($socketPath, $link)) {
+        return $link;
+    }
+    return $socketPath;
+}
+
 /** Cloud Run 已掛載 Cloud SQL 且未填連線名稱時，若只有一個 instance 就自動使用 */
 function database_autodetect_cloudsql_socket()
 {
@@ -145,7 +162,9 @@ class Database {
         }
 
         if ($useSocket) {
-            $dsn = "mysql:unix_socket={$socketPath};dbname={$dbName};charset=utf8mb4";
+            $pdoSocket = database_pdo_socket_for_dsn($socketPath);
+            // 官方範例：dbname 在前、unix_socket 在後；charset 不放 DSN（避免路徑冒號被拆壞）
+            $dsn = 'mysql:dbname=' . $dbName . ';unix_socket=' . $pdoSocket;
         } else {
             $dsn = "mysql:host={$host};port={$port};dbname={$dbName};charset=utf8mb4";
         }
@@ -160,10 +179,13 @@ class Database {
             $options[PDO::ATTR_TIMEOUT] = 60;
         }
 
-        $sslCa = app_env('DB_SSL_CA');
-        if ($sslCa !== '' && is_readable($sslCa)) {
-            $options[PDO::MYSQL_ATTR_SSL_CA] = $sslCa;
-            $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+        // Unix socket 已被 Cloud SQL Auth Proxy 加密，再加 SSL 反而容易 2002
+        if (!$useSocket) {
+            $sslCa = app_env('DB_SSL_CA');
+            if ($sslCa !== '' && is_readable($sslCa)) {
+                $options[PDO::MYSQL_ATTR_SSL_CA] = $sslCa;
+                $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+            }
         }
 
         if (function_exists('ini_set')) {
