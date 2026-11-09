@@ -6,12 +6,18 @@
 require_once __DIR__ . '/mail.php';
 function auth_bootstrap_session()
 {
+    if (app_is_cli()) {
+        return;
+    }
+    if (defined('APP_SKIP_SESSION') && APP_SKIP_SESSION) {
+        return;
+    }
     if (function_exists('session_status')) {
         if (session_status() !== PHP_SESSION_NONE) {
             return;
         }
     }
-    $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+    $secure = app_is_https();
     if (version_compare(PHP_VERSION, '7.3.0', '>=')) {
         session_set_cookie_params(array(
             'lifetime' => 0,
@@ -23,6 +29,14 @@ function auth_bootstrap_session()
     } else {
         session_set_cookie_params(0, '/', '', $secure, true);
     }
+
+    $driver = strtolower(app_env('SESSION_DRIVER', app_is_cloud_run() ? 'db' : 'files'));
+    if ($driver === 'db') {
+        require_once __DIR__ . '/../lib/DbSessionHandler.php';
+        $pdo = (new Database())->getConnection();
+        session_set_save_handler(new DbSessionHandler($pdo), true);
+    }
+
     session_name('YTTRACKER_SID');
     session_start();
 }

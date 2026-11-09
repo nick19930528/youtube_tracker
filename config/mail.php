@@ -3,15 +3,25 @@
  * PHPMailer：寄送 Email 驗證信（SMTP 設定來自環境變數）
  */
 
+require_once __DIR__ . '/env.php';
+
 function mail_public_base_url()
 {
-    $env = getenv('APP_BASE_URL');
-    if ($env !== false && $env !== '') {
+    $env = app_env('APP_BASE_URL');
+    if ($env !== '') {
         return rtrim($env, '/');
     }
-    $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
-    $scheme = $secure ? 'https' : 'http';
-    $host = isset($_SERVER['HTTP_HOST']) ? (string)$_SERVER['HTTP_HOST'] : 'localhost';
+    $scheme = app_is_https() ? 'https' : 'http';
+    $host = '';
+    if (!empty($_SERVER['HTTP_X_FORWARDED_HOST'])) {
+        $host = trim(explode(',', (string) $_SERVER['HTTP_X_FORWARDED_HOST'])[0]);
+    }
+    if ($host === '' && !empty($_SERVER['HTTP_HOST'])) {
+        $host = (string) $_SERVER['HTTP_HOST'];
+    }
+    if ($host === '') {
+        $host = 'localhost';
+    }
     return $scheme . '://' . $host;
 }
 

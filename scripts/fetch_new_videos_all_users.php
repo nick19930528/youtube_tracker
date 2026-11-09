@@ -5,16 +5,16 @@
  * 用法：
  *   php fetch_new_videos_all_users.php
  *
- * 排程範例（cron，每小時）：
- *   0 * * * * cd /path/to/youtube_tracker && php scripts/fetch_new_videos_all_users.php >> /var/log/youtube_tracker_fetch.log 2>&1
+ * 排程範例：
+ *   本機 cron：0 * * * * php scripts/fetch_new_videos_all_users.php
+ *   Cloud Scheduler（HTTP）：POST/GET https://<網域>/scripts/fetch_new_videos_all_users.php
+ *     Header: X-Cron-Secret: <與 Cloud Run 環境變數 CRON_SECRET 相同>
  *
- * 注意：會員與頻道多時執行時間與 YouTube API 配額會累加，請視主機逾時與配額調整排程頻率。
+ * 注意：會員與頻道多時執行時間與 YouTube API 配額會累加；Cloud Run 請把逾時調到足夠（建議 300 秒以上）。
  */
-if (php_sapi_name() !== 'cli') {
-    http_response_code(403);
-    echo 'CLI only';
-    exit(1);
-}
+require_once __DIR__ . '/../config/cron_auth.php';
+cron_require_authorized();
+define('APP_SKIP_SESSION', true);
 
 require_once __DIR__ . '/../config/bootstrap.php';
 require_once __DIR__ . '/../includes/fetch_new_videos_core.php';

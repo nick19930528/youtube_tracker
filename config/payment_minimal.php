@@ -44,14 +44,8 @@ if (!defined('MPG_PUBLIC_BASE_URL')) {
             $host = (string)$_SERVER['HTTP_HOST'];
         }
         if ($host !== '') {
-            $xfProto = '';
-            if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
-                $xfProto = strtolower(trim(explode(',', (string)$_SERVER['HTTP_X_FORWARDED_PROTO'])[0]));
-            }
-            $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-                || (isset($_SERVER['SERVER_PORT']) && (string)$_SERVER['SERVER_PORT'] === '443')
-                || $xfProto === 'https';
-            $scheme = $https ? 'https' : 'http';
+            require_once __DIR__ . '/env.php';
+            $scheme = app_is_https() ? 'https' : 'http';
             $path = '';
             if (!empty($_SERVER['SCRIPT_NAME'])) {
                 $dir = dirname(str_replace('\\', '/', (string)$_SERVER['SCRIPT_NAME']));

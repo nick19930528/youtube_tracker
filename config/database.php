@@ -1,59 +1,133 @@
 <?php
 // config/database.php
+require_once __DIR__ . '/env.php';
 
-// 🔑 API 金鑰設定
-define('YOUTUBE_API_KEY', 'AIzaSyBERv3BEkfKJ1Q5cFKXfRbj2SoQyUi9kpg');    // ← 替換為你的 YouTube 金鑰
-define('OPENAI_API_KEY', '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');      // ← 替換為你的 OpenAI 金鑰
+// API 金鑰：優先環境變數（Cloud Run Secret），未設定時沿用本機既有值
+app_define_from_env(
+    'YOUTUBE_API_KEY',
+    'YOUTUBE_API_KEY',
+    'AIzaSyBERv3BEkfKJ1Q5cFKXfRbj2SoQyUi9kpg'
+);
+app_define_from_env(
+    'OPENAI_API_KEY',
+    'OPENAI_API_KEY',
+    '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'
+);
+
+/**
+ * 解析 Cloud SQL Unix socket：檔案、目錄、或目錄內 mysqld.sock
+ */
+function database_resolve_socket_path($socketPath)
+{
+    $socketPath = rtrim((string) $socketPath, '/');
+    if ($socketPath === '') {
+        return '';
+    }
+    $candidates = array($socketPath, $socketPath . '/mysqld.sock');
+    foreach ($candidates as $p) {
+        if (is_file($p)) {
+            return $p;
+        }
+    }
+    if (is_dir($socketPath) || file_exists($socketPath)) {
+        return $socketPath;
+    }
+    return '';
+}
+
+/** Cloud Run 已掛載 Cloud SQL 且未填連線名稱時，若只有一個 instance 就自動使用 */
+function database_autodetect_cloudsql_socket()
+{
+    if (!is_dir('/cloudsql')) {
+        return '';
+    }
+    $found = array();
+    $entries = @scandir('/cloudsql');
+    if (!is_array($entries)) {
+        return '';
+    }
+    foreach ($entries as $name) {
+        if ($name === '.' || $name === '..') {
+            continue;
+        }
+        $found[] = '/cloudsql/' . $name;
+    }
+    if (count($found) === 1) {
+        return $found[0];
+    }
+    return '';
+}
 
 class Database {
     public $conn;
 
-    public function getConnection() {
+    /**
+     * @param bool $dieOnError true=維持舊行為直接結束；false=丟例外（健康檢查用）
+     * @return PDO
+     */
+    public function getConnection($dieOnError = true) {
         $this->conn = null;
-        $host = getenv('DB_HOST');
-        if ($host === false || $host === '') {
-            $host = 'localhost';
-        }
-        $port = getenv('DB_PORT');
-        if ($port === false || $port === '') {
-            $port = '3307';
-        }
-        $dbName = getenv('DB_NAME');
-        if ($dbName === false || $dbName === '') {
-            $dbName = 'youtube_tracker';
-        }
-        $username = getenv('DB_USER');
-        if ($username === false || $username === '') {
-            $username = 'root';
-        }
-        $password = getenv('DB_PASSWORD');
-        if ($password === false) {
-            $password = '0000';
+        $cloudRun = app_is_cloud_run();
+
+        $host = app_env('DB_HOST', $cloudRun ? '127.0.0.1' : 'localhost');
+        $port = app_env('DB_PORT', $cloudRun ? '3306' : '3307');
+        $dbName = app_env('DB_NAME', 'youtube_tracker');
+        $username = app_env('DB_USER', $cloudRun ? '' : 'root');
+        $passwordEnv = getenv('DB_PASSWORD');
+        if ($passwordEnv === false) {
+            $password = $cloudRun ? '' : '0000';
+        } else {
+            $password = (string) $passwordEnv;
         }
 
-        // Cloud SQL（Cloud Run）：優先使用 Unix socket
+        if ($cloudRun && ($username === '' || $dbName === '')) {
+            $msg = 'Cloud Run 請設定環境變數 DB_USER、DB_PASSWORD、DB_NAME，並在服務加上 Cloud SQL 連線。';
+            if ($dieOnError) {
+                die('❌ 資料庫連線失敗: ' . $msg);
+            }
+            throw new PDOException($msg);
+        }
+
+        // Cloud SQL（Cloud Run）：優先 Unix socket
         // - DB_SOCKET=/cloudsql/<INSTANCE_CONNECTION_NAME>
-        // - 或 CLOUD_SQL_CONNECTION_NAME=<INSTANCE_CONNECTION_NAME>
-        // - 或 DB_HOST=/cloudsql/<INSTANCE_CONNECTION_NAME>
-        $socket = getenv('DB_SOCKET');
-        if ($socket === false || $socket === '') {
-            $cs = getenv('CLOUD_SQL_CONNECTION_NAME');
-            if ($cs !== false && trim((string)$cs) !== '') {
-                $socket = '/cloudsql/' . trim((string)$cs);
+        // - CLOUD_SQL_CONNECTION_NAME=<INSTANCE_CONNECTION_NAME>
+        // - DB_HOST=/cloudsql/<INSTANCE_CONNECTION_NAME>
+        // - 或 Cloud Run 只掛了一個 instance 時自動偵測 /cloudsql/*
+        $socket = app_env('DB_SOCKET');
+        if ($socket === '') {
+            $cs = trim(app_env('CLOUD_SQL_CONNECTION_NAME'));
+            if ($cs !== '') {
+                $socket = (strpos($cs, '/cloudsql/') === 0) ? $cs : ('/cloudsql/' . $cs);
             }
         }
-        $hostTrim = trim((string)$host);
-        $socketPath = '';
-        if ($socket !== false && trim((string)$socket) !== '') {
-            $socketPath = trim((string)$socket);
+        $hostTrim = trim((string) $host);
+        $configuredSocket = '';
+        if ($socket !== '') {
+            $configuredSocket = $socket;
         } elseif (strpos($hostTrim, '/cloudsql/') === 0) {
-            $socketPath = $hostTrim;
+            $configuredSocket = $hostTrim;
+        } elseif ($cloudRun) {
+            $configuredSocket = database_autodetect_cloudsql_socket();
         }
 
-        // 只有在 socket 路徑真的存在時才使用 unix_socket，避免本機/未掛載 Cloud SQL 時直接噴 2002 No such file.
-        // Cloud Run 若已在「Cloud SQL 連接」選了 instance，平台會掛載 /cloudsql/<INSTANCE_CONNECTION_NAME>（目錄）。
-        $socketExists = ($socketPath !== '') && (file_exists($socketPath) || is_dir($socketPath));
-        $wantSocket = ($socketPath !== '');
+        $socketPath = database_resolve_socket_path($configuredSocket);
+        $wantSocket = ($configuredSocket !== '');
+        $socketExists = ($socketPath !== '');
+
+        if ($cloudRun && !$socketExists) {
+            $explicitHost = app_env('DB_HOST');
+            $useTcp = ($explicitHost !== '' && strpos($explicitHost, '/cloudsql/') !== 0);
+            if (!$useTcp) {
+                $hint = $configuredSocket !== ''
+                    ? $configuredSocket
+                    : '/cloudsql/<PROJECT>:<REGION>:<INSTANCE>';
+                $fail = 'Cloud Run 找不到 Cloud SQL socket（' . $hint . '）。請在服務「連線」勾選 Cloud SQL 執行個體，並設定 CLOUD_SQL_CONNECTION_NAME。若改走 IP，請設定 DB_HOST 與 DB_PORT。';
+                if ($dieOnError) {
+                    die('❌ 資料庫連線失敗: ' . $fail);
+                }
+                throw new PDOException($fail);
+            }
+        }
 
         if ($socketExists) {
             $dsn = "mysql:unix_socket={$socketPath};dbname={$dbName};charset=utf8mb4";
@@ -71,13 +145,12 @@ class Database {
             $options[PDO::ATTR_TIMEOUT] = 60;
         }
 
-        $sslCa = getenv('DB_SSL_CA');
-        if ($sslCa !== false && $sslCa !== '' && is_readable($sslCa)) {
+        $sslCa = app_env('DB_SSL_CA');
+        if ($sslCa !== '' && is_readable($sslCa)) {
             $options[PDO::MYSQL_ATTR_SSL_CA] = $sslCa;
             $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
         }
 
-        // 遠端連線時降低「MySQL server has gone away」(2006) 機率
         if (function_exists('ini_set')) {
             @ini_set('default_socket_timeout', '120');
             @ini_set('mysqlnd.net_read_timeout', '120');
@@ -104,17 +177,21 @@ class Database {
             }
         }
 
-        // 若有設定 /cloudsql 但 socket 沒掛載，給出更直覺提示（常見於 Cloud Run 未勾選 Cloud SQL 連接、或 instance/region 不一致）
         if ($wantSocket && !$socketExists) {
-            die("❌ 資料庫連線失敗: 找不到 Cloud SQL socket（{$socketPath}）。請確認 Cloud Run 服務已設定 Cloud SQL 連接，或改用 DB_HOST/DB_PORT（IP/內網）連線。");
+            $fail = '找不到 Cloud SQL socket（' . $configuredSocket . '）。請在 Cloud Run 服務「連線」裡勾選該 Cloud SQL 執行個體，或設定 CLOUD_SQL_CONNECTION_NAME。';
+        } else {
+            $fail = $lastException ? $lastException->getMessage() : 'unknown';
         }
-        die("❌ 資料庫連線失敗: " . ($lastException ? $lastException->getMessage() : 'unknown'));
+        if ($dieOnError) {
+            die('❌ 資料庫連線失敗: ' . $fail);
+        }
+        throw new PDOException($fail, 0, $lastException);
     }
 }
 
-// ✅ 測試區（僅開發測試用）
-// 可用來確認資料庫與 API 金鑰都設定正確
-if (php_sapi_name() === 'cli-server' || basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"])) {
+// 僅 APP_DEBUG=1 時允許直接開此檔做連線／金鑰測試（正式環境請勿開啟）
+$scriptName = isset($_SERVER['SCRIPT_FILENAME']) ? basename((string) $_SERVER['SCRIPT_FILENAME']) : '';
+if (app_env('APP_DEBUG') === '1' && $scriptName !== '' && basename(__FILE__) === $scriptName) {
     echo "<h2>🧪 系統測試中...</h2>";
 
     echo "<h3>✅ 資料庫連線測試：</h3>";
@@ -133,7 +210,7 @@ if (php_sapi_name() === 'cli-server' || basename(__FILE__) == basename($_SERVER[
     }
 
     echo "<h3>✅ OpenAI API 測試：</h3>";
-    echo "<h3>🔍 DEBUG：金鑰開頭為：" . substr(OPENAI_API_KEY, 0, 10) . "...</h3>";
+    echo "<h3>🔍 DEBUG：金鑰開頭為：" . htmlspecialchars(substr(OPENAI_API_KEY, 0, 10)) . "...</h3>";
 
     $ch = curl_init("https://api.openai.com/v1/chat/completions");
     $data = [
@@ -164,7 +241,6 @@ if (php_sapi_name() === 'cli-server' || basename(__FILE__) == basename($_SERVER[
         }
     }
     curl_close($ch);
-
 
     exit;
 }

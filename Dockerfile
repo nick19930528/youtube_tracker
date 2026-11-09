@@ -18,7 +18,9 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 # 本機 docker-compose.yml 會用 volumes 把整個專案掛到 /var/www/html，覆蓋掉此 COPY 以方便開發。
 COPY . /var/www/html
 
-RUN a2enmod rewrite headers
+COPY docker/php/tubelog.ini /usr/local/etc/php/conf.d/tubelog.ini
+
+RUN a2enmod rewrite headers setenvif env
 
 # 預設站點根目錄（可被 compose 覆寫掛載）
 ENV APACHE_DOCUMENT_ROOT=/var/www/html
