@@ -23,10 +23,13 @@ function app_is_cli()
     return PHP_SAPI === 'cli';
 }
 
-/** Cloud Run 會注入 K_SERVICE */
+/** Cloud Run 會注入 K_SERVICE；若 Apache 沒把變數傳進 PHP，改看 /cloudsql 掛載 */
 function app_is_cloud_run()
 {
-    return app_env('K_SERVICE') !== '';
+    if (app_env('K_SERVICE') !== '' || app_env('K_REVISION') !== '') {
+        return true;
+    }
+    return is_dir('/cloudsql');
 }
 
 /**

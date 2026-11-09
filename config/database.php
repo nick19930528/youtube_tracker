@@ -15,7 +15,8 @@ app_define_from_env(
 );
 
 /**
- * 解析 Cloud SQL Unix socket：檔案、目錄、或目錄內 mysqld.sock
+ * 解析 Cloud SQL Unix socket。
+ * Unix socket 不是一般檔案（is_file() 會是 false），FUSE 掛載有時看起來像目錄。
  */
 function database_resolve_socket_path($socketPath)
 {
@@ -25,14 +26,26 @@ function database_resolve_socket_path($socketPath)
     }
     $candidates = array($socketPath, $socketPath . '/mysqld.sock');
     foreach ($candidates as $p) {
-        if (is_file($p)) {
+        if (file_exists($p) && !is_dir($p)) {
             return $p;
         }
     }
-    if (is_dir($socketPath) || file_exists($socketPath)) {
-        return $socketPath;
+    if (is_dir($socketPath)) {
+        $entries = @scandir($socketPath);
+        if (is_array($entries)) {
+            foreach ($entries as $name) {
+                if ($name === '.' || $name === '..') {
+                    continue;
+                }
+                $p = $socketPath . '/' . $name;
+                if (file_exists($p) && !is_dir($p)) {
+                    return $p;
+                }
+            }
+        }
     }
-    return '';
+    // Cloud Run：即使當下掃不到檔案，仍把 /cloudsql/<連線名稱> 交給 PDO
+    return $socketPath;
 }
 
 /** Cloud Run 已掛載 Cloud SQL 且未填連線名稱時，若只有一個 instance 就自動使用 */
@@ -110,26 +123,28 @@ class Database {
             $configuredSocket = database_autodetect_cloudsql_socket();
         }
 
-        $socketPath = database_resolve_socket_path($configuredSocket);
         $wantSocket = ($configuredSocket !== '');
-        $socketExists = ($socketPath !== '');
-
-        if ($cloudRun && !$socketExists) {
-            $explicitHost = app_env('DB_HOST');
-            $useTcp = ($explicitHost !== '' && strpos($explicitHost, '/cloudsql/') !== 0);
-            if (!$useTcp) {
-                $hint = $configuredSocket !== ''
-                    ? $configuredSocket
-                    : '/cloudsql/<PROJECT>:<REGION>:<INSTANCE>';
-                $fail = 'Cloud Run 找不到 Cloud SQL socket（' . $hint . '）。請在服務「連線」勾選 Cloud SQL 執行個體，並設定 CLOUD_SQL_CONNECTION_NAME。若改走 IP，請設定 DB_HOST 與 DB_PORT。';
-                if ($dieOnError) {
-                    die('❌ 資料庫連線失敗: ' . $fail);
-                }
-                throw new PDOException($fail);
-            }
+        $socketPath = $wantSocket ? database_resolve_socket_path($configuredSocket) : '';
+        if ($wantSocket && $socketPath === '') {
+            $socketPath = $configuredSocket;
         }
 
-        if ($socketExists) {
+        $explicitHost = app_env('DB_HOST');
+        $useTcp = ($explicitHost !== '' && strpos($explicitHost, '/cloudsql/') !== 0);
+        $useSocket = $wantSocket && (!$cloudRun || !$useTcp);
+
+        if ($cloudRun && !$useSocket && !$useTcp) {
+            $hint = $configuredSocket !== ''
+                ? $configuredSocket
+                : '/cloudsql/<PROJECT>:<REGION>:<INSTANCE>';
+            $fail = 'Cloud Run 找不到 Cloud SQL socket（' . $hint . '）。請在服務「連線」勾選 Cloud SQL 執行個體，並設定 CLOUD_SQL_CONNECTION_NAME。';
+            if ($dieOnError) {
+                die('❌ 資料庫連線失敗: ' . $fail);
+            }
+            throw new PDOException($fail);
+        }
+
+        if ($useSocket) {
             $dsn = "mysql:unix_socket={$socketPath};dbname={$dbName};charset=utf8mb4";
         } else {
             $dsn = "mysql:host={$host};port={$port};dbname={$dbName};charset=utf8mb4";
@@ -177,10 +192,13 @@ class Database {
             }
         }
 
-        if ($wantSocket && !$socketExists) {
+        $raw = $lastException ? $lastException->getMessage() : 'unknown';
+        if ($useSocket && (stripos($raw, '2002') !== false || stripos($raw, 'refused') !== false || stripos($raw, 'No such file') !== false)) {
+            $fail = $raw . '（socket=' . $socketPath . '）。請確認：1) Cloud Run 已連接 apps-db-dev；2) IAM 幫 Cloud Run 服務帳號加上「Cloud SQL 用戶端」roles/cloudsql.client。';
+        } elseif ($wantSocket && !$useSocket) {
             $fail = '找不到 Cloud SQL socket（' . $configuredSocket . '）。請在 Cloud Run 服務「連線」裡勾選該 Cloud SQL 執行個體，或設定 CLOUD_SQL_CONNECTION_NAME。';
         } else {
-            $fail = $lastException ? $lastException->getMessage() : 'unknown';
+            $fail = $raw;
         }
         if ($dieOnError) {
             die('❌ 資料庫連線失敗: ' . $fail);

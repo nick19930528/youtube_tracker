@@ -15,22 +15,22 @@ class DbSessionHandler implements SessionHandlerInterface
         $this->pdo = $pdo;
     }
 
-    public function open($savePath, $sessionName)
+    public function open(string $path, string $name): bool
     {
         $this->ensureTable();
         return true;
     }
 
-    public function close()
+    public function close(): bool
     {
         return true;
     }
 
-    public function read($id)
+    public function read(string $id): string|false
     {
         $this->ensureTable();
         $stmt = $this->pdo->prepare('SELECT data FROM php_sessions WHERE id = ? LIMIT 1');
-        $stmt->execute(array((string) $id));
+        $stmt->execute(array($id));
         $data = $stmt->fetchColumn();
         if ($data === false || $data === null) {
             return '';
@@ -38,7 +38,7 @@ class DbSessionHandler implements SessionHandlerInterface
         return (string) $data;
     }
 
-    public function write($id, $data)
+    public function write(string $id, string $data): bool
     {
         $this->ensureTable();
         $now = time();
@@ -46,21 +46,24 @@ class DbSessionHandler implements SessionHandlerInterface
             'INSERT INTO php_sessions (id, data, last_activity) VALUES (?, ?, ?)
              ON DUPLICATE KEY UPDATE data = ?, last_activity = ?'
         );
-        return $stmt->execute(array((string) $id, $data, $now, $data, $now));
+        return $stmt->execute(array($id, $data, $now, $data, $now));
     }
 
-    public function destroy($id)
+    public function destroy(string $id): bool
     {
         $this->ensureTable();
         $stmt = $this->pdo->prepare('DELETE FROM php_sessions WHERE id = ?');
-        return $stmt->execute(array((string) $id));
+        return $stmt->execute(array($id));
     }
 
-    public function gc($maxlifetime)
+    public function gc(int $max_lifetime): int|false
     {
         $this->ensureTable();
         $stmt = $this->pdo->prepare('DELETE FROM php_sessions WHERE last_activity < ?');
-        return $stmt->execute(array(time() - (int) $maxlifetime));
+        if (!$stmt->execute(array(time() - $max_lifetime))) {
+            return false;
+        }
+        return $stmt->rowCount();
     }
 
     private function ensureTable()
