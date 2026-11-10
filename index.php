@@ -1529,10 +1529,16 @@ body {
     margin-bottom: 20px;
 }
 .site-header h1 { margin: 0; font-size: 1.5rem; }
-.site-user { font-size: 14px; color: #555; }
+.site-user { font-size: 14px; color: #555; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 0; }
 .site-user { color: var(--muted); }
 .site-user .site-user-meta { color: var(--muted-2); }
 .site-user a { color: var(--link); margin-left: 12px; }
+.user-avatar {
+    width: 36px; height: 36px; border-radius: 50%; object-fit: cover;
+    background: #e2e8f0; display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700; color: #334155; margin-right: 8px; flex-shrink: 0; vertical-align: middle;
+}
+body[data-theme="dark"] .user-avatar { background: rgba(255,255,255,0.12); color: #e7e7e7; }
 
 @media (max-width: 720px) {
     footer { padding: 18px 0 28px !important; }
@@ -1548,6 +1554,11 @@ body {
 <header class="site-header">
     <h1>🎬 YouTube Dashboard</h1>
     <div class="site-user">
+        <?= user_avatar_html(
+            isset($_SESSION['user_avatar_url']) ? (string) $_SESSION['user_avatar_url'] : '',
+            $currentAuthUser['name'] !== '' ? $currentAuthUser['name'] : $currentAuthUser['email'],
+            36
+        ) ?>
         <?= htmlspecialchars($currentAuthUser['name'] !== '' ? $currentAuthUser['name'] : $currentAuthUser['email']) ?>
         <span class="site-user-meta">(<?= htmlspecialchars($currentAuthUser['email']) ?>)</span>
         <a href="index.php?page=account">會員中心</a>

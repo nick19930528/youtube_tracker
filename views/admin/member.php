@@ -105,6 +105,11 @@ function admin_member_billing_label($iv)
         .pill-watched { background: #dcfce7; color: #166534; }
         .pill-unwatched { background: #fef3c7; color: #92400e; }
         .muted { color: #94a3b8; font-size: 13px; }
+        .user-avatar {
+            width: 48px; height: 48px; border-radius: 50%; object-fit: cover;
+            background: #e2e8f0; display: inline-flex; align-items: center; justify-content: center;
+            font-weight: 700; color: #334155; vertical-align: middle;
+        }
 
         body[data-theme="dark"] { background: #0b1220; color: #e2e8f0; }
         body[data-theme="dark"] section { background: rgba(15, 23, 42, 0.92); }
@@ -130,6 +135,8 @@ function admin_member_billing_label($iv)
     <section>
         <h2>基本資料</h2>
         <dl class="dl-grid">
+            <dt>大頭照</dt>
+            <dd><?= user_avatar_html(isset($profile['avatar_url']) ? $profile['avatar_url'] : '', $profile['name'], 48) ?></dd>
             <dt>Email</dt>
             <dd><?= htmlspecialchars($profile['email'], ENT_QUOTES, 'UTF-8') ?></dd>
             <dt>姓名</dt>

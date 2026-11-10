@@ -54,6 +54,8 @@ services:
       CRON_SECRET: ${CRON_SECRET:-}
       SESSION_DRIVER: ${SESSION_DRIVER:-files}
       APP_BASE_URL: ${APP_BASE_URL:-https://tubelog.xyz}
+      GCS_BUCKET: ${GCS_BUCKET:-}
+      GCS_PUBLIC_BASE: ${GCS_PUBLIC_BASE:-}
       MAIL_SMTP_HOST: ${MAIL_SMTP_HOST:-smtp.gmail.com}
       MAIL_SMTP_PORT: ${MAIL_SMTP_PORT:-587}
       MAIL_SMTP_USER: ${MAIL_SMTP_USER:-anytime333b1@gmail.com}

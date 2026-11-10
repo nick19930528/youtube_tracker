@@ -14,11 +14,16 @@ class AccountController
     public function getProfile($userId)
     {
         try {
-            $stmt = $this->pdo->prepare('SELECT id, email, name, gender, COALESCE(dash_auto_load, 1) AS dash_auto_load, COALESCE(fetch_max_age_days, 7) AS fetch_max_age_days, COALESCE(fetch_max_per_channel, 1) AS fetch_max_per_channel, COALESCE(ui_theme, \'light\') AS ui_theme, email_verified_at, created_at FROM users WHERE id = ? LIMIT 1');
+            $stmt = $this->pdo->prepare('SELECT id, email, name, gender, COALESCE(dash_auto_load, 1) AS dash_auto_load, COALESCE(fetch_max_age_days, 7) AS fetch_max_age_days, COALESCE(fetch_max_per_channel, 1) AS fetch_max_per_channel, COALESCE(ui_theme, \'light\') AS ui_theme, email_verified_at, created_at, avatar_url, avatar_object FROM users WHERE id = ? LIMIT 1');
             $stmt->execute(array($userId));
         } catch (Throwable $e) {
-            $stmt = $this->pdo->prepare('SELECT id, email, name, gender, COALESCE(dash_auto_load, 1) AS dash_auto_load, email_verified_at, created_at FROM users WHERE id = ? LIMIT 1');
-            $stmt->execute(array($userId));
+            try {
+                $stmt = $this->pdo->prepare('SELECT id, email, name, gender, COALESCE(dash_auto_load, 1) AS dash_auto_load, COALESCE(fetch_max_age_days, 7) AS fetch_max_age_days, COALESCE(fetch_max_per_channel, 1) AS fetch_max_per_channel, COALESCE(ui_theme, \'light\') AS ui_theme, email_verified_at, created_at FROM users WHERE id = ? LIMIT 1');
+                $stmt->execute(array($userId));
+            } catch (Throwable $e2) {
+                $stmt = $this->pdo->prepare('SELECT id, email, name, gender, COALESCE(dash_auto_load, 1) AS dash_auto_load, email_verified_at, created_at FROM users WHERE id = ? LIMIT 1');
+                $stmt->execute(array($userId));
+            }
         }
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$row) {
@@ -31,7 +36,32 @@ class AccountController
         if (!array_key_exists('ui_theme', $row) || ($row['ui_theme'] !== 'dark' && $row['ui_theme'] !== 'light')) {
             $row['ui_theme'] = 'light';
         }
+        if (!array_key_exists('avatar_url', $row)) {
+            $row['avatar_url'] = '';
+        }
+        if (!empty($row['avatar_url']) && (int) $userId === auth_user_id()) {
+            $_SESSION['user_avatar_url'] = (string) $row['avatar_url'];
+        }
         return $row;
+    }
+
+    /**
+     * @param array $file $_FILES['avatar']
+     * @return true|string
+     */
+    public function updateAvatar($userId, array $file)
+    {
+        require_once __DIR__ . '/../lib/UserAvatar.php';
+        return UserAvatar::saveFromUpload($this->pdo, $userId, $file);
+    }
+
+    /**
+     * @return true|string
+     */
+    public function clearAvatar($userId)
+    {
+        require_once __DIR__ . '/../lib/UserAvatar.php';
+        return UserAvatar::clear($this->pdo, $userId);
     }
 
     /**

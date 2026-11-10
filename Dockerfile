@@ -3,9 +3,13 @@ FROM php:8.2-apache-bookworm
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         libcurl4-openssl-dev \
+        libjpeg62-turbo-dev \
+        libpng-dev \
+        libwebp-dev \
         git \
         unzip \
-    && docker-php-ext-install -j$(nproc) pdo_mysql mysqli curl \
+    && docker-php-ext-configure gd --with-jpeg --with-webp \
+    && docker-php-ext-install -j$(nproc) pdo_mysql mysqli curl gd \
     && rm -rf /var/lib/apt/lists/*
 
 # Cloud Run：容器需聽環境變數 PORT（見 docker/entrypoint.sh）；部署時請確認服務埠與 PORT 一致（預設 8080）。

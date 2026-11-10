@@ -41,6 +41,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: index.php?page=account&notice=fetch_pref_err');
         exit;
     }
+    if (isset($_POST['save_avatar'])) {
+        $file = isset($_FILES['avatar']) && is_array($_FILES['avatar']) ? $_FILES['avatar'] : array();
+        $r = $ctrl->updateAvatar($uid, $file);
+        if ($r === true) {
+            header('Location: index.php?page=account&notice=avatar_ok');
+            exit;
+        }
+        header('Location: index.php?page=account&notice=' . rawurlencode('avatar:' . $r));
+        exit;
+    }
+    if (isset($_POST['clear_avatar'])) {
+        $ctrl->clearAvatar($uid);
+        header('Location: index.php?page=account&notice=avatar_cleared');
+        exit;
+    }
     if (isset($_POST['save_profile'])) {
         $name = isset($_POST['name']) ? $_POST['name'] : '';
         $gender = isset($_POST['gender']) ? $_POST['gender'] : '';
@@ -112,6 +127,12 @@ if ($notice === 'profile_ok') {
     $noticeText = '已更新個人資料。';
 } elseif ($notice === 'profile_err') {
     $noticeText = '無法更新個人資料（姓名不可空白）。';
+} elseif ($notice === 'avatar_ok') {
+    $noticeText = '已更新大頭照。';
+} elseif ($notice === 'avatar_cleared') {
+    $noticeText = '已移除大頭照。';
+} elseif (strpos($notice, 'avatar:') === 0) {
+    $noticeText = rawurldecode(substr($notice, 7));
 } elseif ($notice === 'password_ok') {
     $noticeText = '密碼已變更。';
 } elseif (strpos($notice, 'pwd:') === 0) {
@@ -387,6 +408,19 @@ function account_center_plan_quota(array $p)
         }
         button[type="submit"]:active { transform: translateY(0); }
         .hint { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.45; }
+        .avatar-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 8px 0 16px; }
+        .user-avatar {
+            width: 88px; height: 88px; border-radius: 50%; object-fit: cover;
+            background: #e2e8f0; display: inline-flex; align-items: center; justify-content: center;
+            font-weight: 700; color: #334155; flex-shrink: 0;
+        }
+        body[data-theme="dark"] .user-avatar { background: rgba(255,255,255,0.12); color: #e7e7e7; }
+        .user-avatar--fallback { letter-spacing: 0; }
+        .btn-ghost {
+            margin-top: 14px; margin-left: 8px; padding: 11px 16px; background: transparent;
+            color: var(--text); border: 1px solid var(--control-border); border-radius: 10px;
+            font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer;
+        }
         .alert {
             padding: 12px 16px;
             border-radius: 12px;
@@ -468,13 +502,35 @@ function account_center_plan_quota(array $p)
     </div>
 
     <?php if ($noticeText !== ''): ?>
-        <div class="alert <?= (strpos($notice, 'pwd:') === 0 || $notice === 'profile_err' || $notice === 'dash_pref_err' || $notice === 'fetch_pref_err' || $notice === 'verify_resent_fail') ? 'alert--err' : 'alert--ok' ?>">
+        <div class="alert <?= (strpos($notice, 'pwd:') === 0 || strpos($notice, 'avatar:') === 0 || $notice === 'profile_err' || $notice === 'dash_pref_err' || $notice === 'fetch_pref_err' || $notice === 'verify_resent_fail') ? 'alert--err' : 'alert--ok' ?>">
             <?= htmlspecialchars($noticeText) ?>
         </div>
     <?php endif; ?>
 
     <div class="card">
         <h2>個人資料</h2>
+        <?php
+        $avatarUrl = isset($profile['avatar_url']) ? trim((string) $profile['avatar_url']) : '';
+        $avatarName = isset($profile['name']) ? (string) $profile['name'] : '';
+        ?>
+        <div class="avatar-row">
+            <?= user_avatar_html($avatarUrl, $avatarName, 88) ?>
+            <div>
+                <form method="post" action="index.php?page=account" enctype="multipart/form-data">
+                    <input type="hidden" name="save_avatar" value="1">
+                    <label for="avatar">大頭照</label>
+                    <input type="file" id="avatar" name="avatar" accept="image/jpeg,image/png,image/webp,image/gif" required>
+                    <p class="hint">JPG／PNG／WebP／GIF，最大 2MB。照片會存到 Google Cloud Storage。</p>
+                    <button type="submit">上傳大頭照</button>
+                </form>
+                <?php if ($avatarUrl !== ''): ?>
+                <form method="post" action="index.php?page=account" style="display:inline;">
+                    <input type="hidden" name="clear_avatar" value="1">
+                    <button type="submit" class="btn-ghost">移除大頭照</button>
+                </form>
+                <?php endif; ?>
+            </div>
+        </div>
         <div class="row"><strong>Email</strong> <?= htmlspecialchars($profile['email']) ?></div>
         <div class="row"><strong>註冊時間</strong> <?= htmlspecialchars($profile['created_at']) ?></div>
         <?php if (!empty($profile['email_verified_at'])): ?>

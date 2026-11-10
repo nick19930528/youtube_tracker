@@ -83,15 +83,22 @@ function auth_login(PDO $pdo, $email, $password)
     if ($email === '' || $password === '') {
         return false;
     }
-    $stmt = $pdo->prepare('SELECT id, email, name, password_hash, COALESCE(dash_auto_load, 1) AS dash_auto_load, COALESCE(ui_theme, \'light\') AS ui_theme, email_verified_at FROM users WHERE email = ? LIMIT 1');
-    $stmt->execute(array($email));
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    try {
+        $stmt = $pdo->prepare('SELECT id, email, name, password_hash, COALESCE(dash_auto_load, 1) AS dash_auto_load, COALESCE(ui_theme, \'light\') AS ui_theme, email_verified_at, avatar_url FROM users WHERE email = ? LIMIT 1');
+        $stmt->execute(array($email));
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {
+        $stmt = $pdo->prepare('SELECT id, email, name, password_hash, COALESCE(dash_auto_load, 1) AS dash_auto_load, COALESCE(ui_theme, \'light\') AS ui_theme, email_verified_at FROM users WHERE email = ? LIMIT 1');
+        $stmt->execute(array($email));
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
     if (!$row || !password_verify($password, $row['password_hash'])) {
         return false;
     }
     $_SESSION['user_id'] = (int)$row['id'];
     $_SESSION['user_email'] = $row['email'];
     $_SESSION['user_name'] = $row['name'];
+    $_SESSION['user_avatar_url'] = isset($row['avatar_url']) ? (string) $row['avatar_url'] : '';
     $_SESSION['dash_auto_load'] = isset($row['dash_auto_load']) ? ((int)$row['dash_auto_load'] ? 1 : 0) : 1;
     $_SESSION['ui_theme'] = (isset($row['ui_theme']) && $row['ui_theme'] === 'dark') ? 'dark' : 'light';
     $ev = isset($row['email_verified_at']) && $row['email_verified_at'] !== null && $row['email_verified_at'] !== '';
