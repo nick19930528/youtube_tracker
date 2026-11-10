@@ -1,4 +1,6 @@
--- 會員大頭照：公開網址 + Cloud Storage object 路徑（更換／刪除用）
+-- 會員大頭照
+-- avatar_url：網站顯示用的公開網址
+-- avatar_object：桶內路徑（例如 avatars/1/xxx.jpg），更換或移除大頭照時用來刪舊檔
 -- 若欄位已存在請勿重複執行。應用程式首次上傳時也會嘗試自動加欄。
 
 ALTER TABLE `users`

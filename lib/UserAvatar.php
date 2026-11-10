@@ -10,16 +10,19 @@ class UserAvatar
     const MAX_BYTES = 2097152;
     const MAX_EDGE = 512;
 
+    /**
+     * @return bool 欄位可用才為 true（先確認再上傳，避免桶裡有檔、資料庫沒網址）
+     */
     public static function ensureColumns(PDO $pdo)
     {
-        static $done = false;
-        if ($done) {
-            return;
+        static $ok = null;
+        if ($ok === true) {
+            return true;
         }
         try {
             $pdo->query('SELECT avatar_url, avatar_object FROM users LIMIT 1');
-            $done = true;
-            return;
+            $ok = true;
+            return true;
         } catch (Throwable $e) {
         }
         try {
@@ -30,7 +33,14 @@ class UserAvatar
             $pdo->exec("ALTER TABLE users ADD COLUMN avatar_object varchar(255) NULL DEFAULT NULL");
         } catch (Throwable $e) {
         }
-        $done = true;
+        try {
+            $pdo->query('SELECT avatar_url, avatar_object FROM users LIMIT 1');
+            $ok = true;
+            return true;
+        } catch (Throwable $e) {
+            $ok = false;
+            return false;
+        }
     }
 
     /**
@@ -67,18 +77,33 @@ class UserAvatar
             return $processed;
         }
 
-        self::ensureColumns($pdo);
+        if (!self::ensureColumns($pdo)) {
+            return '資料庫還沒有大頭照欄位。請先在 Cloud SQL 執行 config/migrations/015_users_avatar.sql（avatar_url、avatar_object）。';
+        }
         $old = self::currentObject($pdo, $userId);
 
         $object = 'avatars/' . $userId . '/' . bin2hex(random_bytes(8)) . '.' . $processed['ext'];
-        $put = self::store($object, $processed['bytes'], $processed['mime']);
-        if (is_string($put)) {
-            return $put;
+        $stored = self::store($object, $processed['bytes'], $processed['mime']);
+        if (is_string($stored)) {
+            return $stored;
+        }
+        $publicUrl = $stored['url'];
+
+        try {
+            $stmt = $pdo->prepare('UPDATE users SET avatar_url = ?, avatar_object = ? WHERE id = ?');
+            $stmt->execute(array($publicUrl, $object, $userId));
+            $check = $pdo->prepare('SELECT avatar_url FROM users WHERE id = ? LIMIT 1');
+            $check->execute(array($userId));
+            $saved = (string) $check->fetchColumn();
+            if ($saved === '') {
+                throw new PDOException('avatar_url 寫入後仍為空白');
+            }
+        } catch (Throwable $e) {
+            self::removeStored($object);
+            return '照片已傳到雲端，但無法寫入資料庫網址：' . $e->getMessage();
         }
 
-        $stmt = $pdo->prepare('UPDATE users SET avatar_url = ?, avatar_object = ? WHERE id = ?');
-        $stmt->execute(array($put, $object, $userId));
-        $_SESSION['user_avatar_url'] = $put;
+        $_SESSION['user_avatar_url'] = $publicUrl;
 
         if ($old !== '' && $old !== $object) {
             self::removeStored($old);
@@ -203,7 +228,7 @@ class UserAvatar
     }
 
     /**
-     * @return string|string 成功為公開 URL
+     * @return array{url:string}|string 成功為 ['url'=>公開網址]，失敗為錯誤字串
      */
     private static function store($objectName, $bytes, $mime)
     {
@@ -213,7 +238,7 @@ class UserAvatar
             if ($r !== true) {
                 return $r;
             }
-            return $gcs->publicUrl($objectName);
+            return array('url' => $gcs->publicUrl($objectName));
         }
         if (app_is_cloud_run()) {
             return '尚未設定 GCS_BUCKET，無法在 Cloud Run 儲存大頭照。請建立 Cloud Storage 儲存桶並填入環境變數。';
@@ -227,7 +252,7 @@ class UserAvatar
         if (file_put_contents($abs, $bytes) === false) {
             return '寫入本機檔案失敗。';
         }
-        return 'uploads/' . str_replace('\\', '/', $objectName);
+        return array('url' => $rel);
     }
 
     private static function removeStored($objectName)
