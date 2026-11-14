@@ -429,7 +429,7 @@ function auth_public_price_label(array $p)
             <div class="auth-brand">
                 <div class="auth-brand-icon" aria-hidden="true">▶</div>
                 <h1>TubeLog</h1>
-                <p>登入或註冊，管理訂閱與待看清單</p>
+                <p>登入或註冊，管理訂閱與待看清單 · NAS 測試版</p>
             </div>
             <?php if ($authPage !== 'forgot_password'): ?>
             <nav class="auth-tabs" role="tablist" aria-label="登入或註冊">
